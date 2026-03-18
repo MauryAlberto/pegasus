@@ -8,6 +8,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_executable(pegasus
     src/main.cpp
+    src/debug.cpp
 )
 
 target_compile_options(pegasus PRIVATE
