@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <cstdio>
+#include <type_traits>
 #include "chunk.hpp"
 
 void disassembleChunk(const Chunk& chunk, const std::string& name);

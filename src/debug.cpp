@@ -1,6 +1,24 @@
 #include "debug.hpp"
 
-std::size_t simpleInstruction(const std::string& name, std::size_t offset) {
+static std::size_t constantInstruction(const Chunk& chunk, const std::string& name, std::size_t offset) {
+    std::uint8_t constantIndex = chunk.getRawByte(offset + 1);
+    Value constant = chunk.getConstant(constantIndex);
+
+    printf("%-16s ", name.c_str());
+
+    std::visit([](auto value) {
+        using T = decltype(value);
+        if constexpr(std::is_same_v<T, double>) {
+            printf("%.2f\n", value);
+        } else {
+            printf("unknown value type\n");
+        }
+    }, constant);
+
+    return offset + 2;
+}
+
+static std::size_t simpleInstruction(const std::string& name, std::size_t offset) {
     printf("%s\n", name.c_str());
     return offset + 1;
 }
@@ -18,10 +36,12 @@ std::size_t disassembleInstruction(const Chunk& chunk, std::size_t offset) {
 
     OpCode instruction = chunk.getInstruction(offset);
     switch(instruction) {
+        case OpCode::OP_CONSTANT:
+            return constantInstruction(chunk, "OP_CONSTANT", offset);
         case OpCode::OP_RETURN:
             return simpleInstruction("OP_RETURN", offset);
         default:
-            printf("Unkown opcode %d\n", static_cast<int>(instruction));
+            printf("unknown opcode %d\n", static_cast<int>(instruction));
             return offset + 1;
     }
 }
