@@ -34,6 +34,12 @@ void disassembleChunk(const Chunk& chunk, const std::string& name) {
 std::size_t disassembleInstruction(const Chunk& chunk, std::size_t offset) {
     printf("%04zu ", offset);
 
+    if(offset > 0 && chunk.getLine(offset) == chunk.getLine(offset - 1)) {
+        printf("   | ");
+    } else {
+        printf("%4d ", chunk.getLine(offset));
+    }
+
     OpCode instruction = chunk.getInstruction(offset);
     switch(instruction) {
         case OpCode::OP_CONSTANT:

@@ -19,12 +19,14 @@ class Chunk {
 
         }
 
-        void write(OpCode op) {
+        void write(OpCode op, int lineNum) {
             code.push_back(static_cast<std::uint8_t>(op));
+            line.push_back(lineNum);
         }
 
-        void write(std::uint8_t byte) {
+        void write(std::uint8_t byte, int lineNum) {
             code.push_back(byte);
+            line.push_back(lineNum);
         }
 
         std::size_t addConstant(Value value) {
@@ -46,6 +48,10 @@ class Chunk {
 
         std::uint8_t getRawByte(std::size_t offset) const {
             return code[offset];
+        }
+
+        int getLine(std::size_t offset) const {
+            return line[offset];
         }
 
     private:
