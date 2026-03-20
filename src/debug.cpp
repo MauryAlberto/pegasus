@@ -1,8 +1,8 @@
 #include "debug.hpp"
 
 static std::size_t constantInstruction(const Chunk& chunk, const std::string& name, std::size_t offset) {
-    std::uint8_t constantIndex = chunk.getRawByte(offset + 1);
-    Value constant = chunk.getConstant(constantIndex);
+    std::uint8_t constantIndex{chunk.getRawByte(offset + 1)};
+    Value constant{chunk.getConstant(constantIndex)};
 
     printf("%-16s ", name.c_str());
 
@@ -16,6 +16,27 @@ static std::size_t constantInstruction(const Chunk& chunk, const std::string& na
     }, constant);
 
     return offset + 2;
+}
+
+static std::size_t constantLongInstruction(const Chunk& chunk, const std::string& name, std::size_t offset) {
+    std::size_t constantIndex{
+        static_cast<std::size_t>(chunk.getRawByte(offset + 1)) |
+        (static_cast<std::size_t>(chunk.getRawByte(offset + 2)) << 8) |
+        (static_cast<std::size_t>(chunk.getRawByte(offset + 3)) << 16)};
+    Value constant{chunk.getConstant(constantIndex)};
+
+    printf("%-16s ", name.c_str());
+
+    std::visit([](auto value) {
+        using T = decltype(value);
+        if constexpr(std::is_same_v<T, double>) {
+            printf("%.2f\n", value);
+        } else {
+            printf("unknown value type\n");
+        }
+    }, constant);
+
+    return offset + 4;
 }
 
 static std::size_t simpleInstruction(const std::string& name, std::size_t offset) {
@@ -40,10 +61,12 @@ std::size_t disassembleInstruction(const Chunk& chunk, std::size_t offset) {
         printf("%4d ", chunk.getLine(offset));
     }
 
-    OpCode instruction = chunk.getInstruction(offset);
+    OpCode instruction{chunk.getInstruction(offset)};
     switch(instruction) {
         case OpCode::OP_CONSTANT:
             return constantInstruction(chunk, "OP_CONSTANT", offset);
+        case OpCode::OP_CONSTANT_LONG:
+            return constantLongInstruction(chunk, "OP_CONSTANT_LONG", offset);
         case OpCode::OP_RETURN:
             return simpleInstruction("OP_RETURN", offset);
         default:

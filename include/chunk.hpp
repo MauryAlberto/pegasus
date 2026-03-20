@@ -8,6 +8,7 @@ using Value = std::variant<double>;
 
 enum class OpCode : std::uint8_t {
     OP_CONSTANT,
+    OP_CONSTANT_LONG,
     OP_RETURN
 };
 
@@ -36,6 +37,20 @@ class Chunk {
         std::size_t addConstant(Value value) {
             constants.push_back(value);
             return constants.size() - 1;
+        }
+
+        void writeConstant(Value value, int lineNum) {
+            std::size_t constantIndex = addConstant(value);
+
+            if(constantIndex <= 255) {
+                write(OpCode::OP_CONSTANT, lineNum);
+                write(static_cast<std::uint8_t>(constantIndex), lineNum);
+            } else {
+                write(OpCode::OP_CONSTANT_LONG, lineNum);
+                write(static_cast<std::uint8_t>((constantIndex & 0xFF)), lineNum);
+                write(static_cast<std::uint8_t>((constantIndex >> 8) & 0xFF), lineNum);
+                write(static_cast<std::uint8_t>((constantIndex >> 16) & 0xFF), lineNum);
+            }
         }
 
         Value getConstant(std::size_t constantIndex) const {
