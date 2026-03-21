@@ -3,8 +3,7 @@
 #include <cstdint>
 #include <cstddef>
 #include <variant>
-
-using Value = std::variant<double>;
+#include "value.hpp"
 
 enum class OpCode : std::uint8_t {
     OP_CONSTANT,
@@ -20,23 +19,23 @@ struct LineInfo {
 class Chunk {
     public:
         Chunk() {
-            code.reserve(64);
-            line.reserve(64);
+            code_.reserve(64);
+            line_.reserve(64);
         }
 
         void write(OpCode op, int lineNum) {
-            code.push_back(static_cast<std::uint8_t>(op));
+            code_.push_back(static_cast<std::uint8_t>(op));
             trackLine(lineNum);
         }
 
         void write(std::uint8_t byte, int lineNum) {
-            code.push_back(byte);
+            code_.push_back(byte);
             trackLine(lineNum);
         }
 
         std::size_t addConstant(Value value) {
-            constants.push_back(value);
-            return constants.size() - 1;
+            constants_.push_back(value);
+            return constants_.size() - 1;
         }
 
         void writeConstant(Value value, int lineNum) {
@@ -54,24 +53,24 @@ class Chunk {
         }
 
         Value getConstant(std::size_t constantIndex) const {
-            return constants[constantIndex];
+            return constants_[constantIndex];
         }
 
         std::size_t getCodeSize() const {
-            return code.size();
+            return code_.size();
         }
 
         OpCode getInstruction(std::size_t offset) const {
-            return static_cast<OpCode>(code[offset]);
+            return static_cast<OpCode>(code_[offset]);
         }
 
         std::uint8_t getRawByte(std::size_t offset) const {
-            return code[offset];
+            return code_[offset];
         }
 
         int getLine(std::size_t offset) const {
             std::size_t accumulated{0};
-            for(const auto& [lineNum, count] : line) {
+            for(const auto& [lineNum, count] : line_) {
                 accumulated += count;
                 if(offset < accumulated) {
                     return lineNum;
@@ -81,16 +80,20 @@ class Chunk {
             return 0;
         }
 
+        const std::uint8_t* getCode() const {
+            return code_.data();
+        }
+
     private:
-        std::vector<std::uint8_t> code;
-        std::vector<Value> constants;
-        std::vector<LineInfo> line;
+        std::vector<std::uint8_t> code_;
+        std::vector<Value> constants_;
+        std::vector<LineInfo> line_;
 
         void trackLine(int lineNum) {
-            if(!line.empty() && line.back().line == lineNum) {
-                line.back().count++;
+            if(!line_.empty() && line_.back().line == lineNum) {
+                line_.back().count++;
             } else {
-                line.push_back({lineNum, 1});
+                line_.push_back({lineNum, 1});
             }
         }
 };

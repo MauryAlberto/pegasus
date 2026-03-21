@@ -6,14 +6,7 @@ static std::size_t constantInstruction(const Chunk& chunk, const std::string& na
 
     printf("%-16s ", name.c_str());
 
-    std::visit([](auto value) {
-        using T = decltype(value);
-        if constexpr(std::is_same_v<T, double>) {
-            printf("%.2f\n", value);
-        } else {
-            printf("unknown value type\n");
-        }
-    }, constant);
+    printValue(constant);
 
     return offset + 2;
 }
@@ -27,14 +20,7 @@ static std::size_t constantLongInstruction(const Chunk& chunk, const std::string
 
     printf("%-16s ", name.c_str());
 
-    std::visit([](auto value) {
-        using T = decltype(value);
-        if constexpr(std::is_same_v<T, double>) {
-            printf("%.2f\n", value);
-        } else {
-            printf("unknown value type\n");
-        }
-    }, constant);
+    printValue(constant);
 
     return offset + 4;
 }
