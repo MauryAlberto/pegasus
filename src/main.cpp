@@ -4,11 +4,11 @@
 
 int main() {
     
-    Chunk chunk;
-    std::uint8_t constantIndex{static_cast<std::uint8_t>(chunk.addConstant(Value{1.2}))};
-    chunk.write(OpCode::OP_CONSTANT, 123);
+    pegasus::Chunk chunk;
+    std::uint8_t constantIndex{static_cast<std::uint8_t>(chunk.addConstant(pegasus::Value{1.2}))};
+    chunk.write(pegasus::OpCode::OP_CONSTANT, 123);
     chunk.write(constantIndex, 123);
-    chunk.write(OpCode::OP_RETURN, 123);
-    disassembleChunk(chunk, "test chunk");
+    chunk.write(pegasus::OpCode::OP_RETURN, 123);
+    pegasus::disassembleChunk(chunk, "test chunk");
     return 0;
 }
