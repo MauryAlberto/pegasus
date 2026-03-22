@@ -1,5 +1,7 @@
 #pragma once
+#include <memory>
 #include "chunk.hpp"
+#include "debug.hpp"
 
 namespace pegasus {
     enum class InterpretResult {
@@ -15,6 +17,10 @@ namespace pegasus {
 
             InterpretResult run() {
                 while(true) {
+                    if constexpr(DEBUG_TRACE_EXECUTION) {
+                        disassembleInstruction(chunk_, static_cast<std::size_t>(ip_ - chunk_.getCode()));
+                    }
+
                     OpCode instruction{static_cast<OpCode>(*ip_++)};
                     switch(instruction) {
                         case OpCode::OP_CONSTANT: {
@@ -39,6 +45,7 @@ namespace pegasus {
                     }
                 }
             }
+
         private:
             const Chunk& chunk_;
             const std::uint8_t* ip_;
