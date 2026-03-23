@@ -53,6 +53,15 @@ namespace pegasus {
                 }
             }
 
+            void free() {
+                code_.clear();
+                constants_.clear();
+                line_.clear();
+                code_.shrink_to_fit();
+                constants_.shrink_to_fit();
+                line_.shrink_to_fit();
+            }
+
             Value getConstant(std::size_t constantIndex) const {
                 return constants_[constantIndex];
             }
