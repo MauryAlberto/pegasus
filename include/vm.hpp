@@ -1,9 +1,14 @@
 #pragma once
 #include <memory>
+#include <array>
+#include <type_traits>
 #include "chunk.hpp"
 #include "debug.hpp"
+#include "value.hpp"
 
 namespace pegasus {
+    inline constexpr int STACK_SIZE = 256;
+
     enum class InterpretResult {
         OK,
         COMPILE_ERROR,
@@ -18,6 +23,13 @@ namespace pegasus {
             InterpretResult run() {
                 while(true) {
                     if constexpr(DEBUG_TRACE_EXECUTION) {
+                        for(Value* slot {stack_.data()}; slot < stackTop_; slot++) {
+                            printf("     ");
+                            printf("[ ");
+                            printValue(*slot);
+                            printf(" ]");
+                        }
+                        printf("\n");
                         disassembleInstruction(chunk_, static_cast<std::size_t>(ip_ - chunk_.getCode()));
                     }
 
@@ -26,7 +38,7 @@ namespace pegasus {
                         case OpCode::OP_CONSTANT: {
                             const std::uint8_t constantIndex{*ip_++};
                             Value constant{chunk_.getConstant(constantIndex)};
-                            printValue(constant);
+                            push(constant);
                             break;
                         }
                         case OpCode::OP_CONSTANT_LONG: {
@@ -35,10 +47,16 @@ namespace pegasus {
                             const std::size_t highByte{static_cast<std::size_t>(*ip_++)};
                             const std::size_t constantIndex{(highByte << 16) | (midByte << 8) | lowByte};
                             Value constant{chunk_.getConstant(constantIndex)};
-                            printValue(constant);
+                            push(constant);
+                            break;
+                        }
+                        case OpCode::OP_NEGATE: {
+                            push(negateValue(pop()));
                             break;
                         }
                         case OpCode::OP_RETURN:
+                            printValue(pop());
+                            printf("\n");
                             return InterpretResult::OK;
                         default:
                             return InterpretResult::RUNTIME_ERROR;
@@ -46,8 +64,20 @@ namespace pegasus {
                 }
             }
 
+            void push(Value value) {
+                *stackTop_ = value;
+                stackTop_++;
+            }
+
+            Value pop() {
+                stackTop_--;
+                return *stackTop_;
+            }
+
         private:
             const Chunk& chunk_;
             const std::uint8_t* ip_;
+            std::array<Value, STACK_SIZE> stack_;
+            Value* stackTop_ {stack_.data()};
     };
 }

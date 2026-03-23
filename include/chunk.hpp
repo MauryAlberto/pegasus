@@ -9,6 +9,7 @@ namespace pegasus {
     enum class OpCode : std::uint8_t {
     OP_CONSTANT,
     OP_CONSTANT_LONG,
+    OP_NEGATE,
     OP_RETURN
     };
 

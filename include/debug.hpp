@@ -1,7 +1,6 @@
 #pragma once
 #include <string>
 #include <cstdio>
-#include <type_traits>
 #include "chunk.hpp"
 
 namespace pegasus {
