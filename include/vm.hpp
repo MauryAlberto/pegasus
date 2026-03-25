@@ -1,8 +1,8 @@
 #pragma once
-#include <memory>
 #include <array>
 #include <stdexcept>
 #include <type_traits>
+#include <string_view>
 #include "chunk.hpp"
 #include "debug.hpp"
 #include "value.hpp"
@@ -76,7 +76,13 @@ namespace pegasus {
                     printf("runtime error: %s\n", e.what());
                     return InterpretResult::RUNTIME_ERROR;
                 }
-            }  
+            }
+            
+            static InterpretResult interpret(std::string_view source) {
+                // todo: compile source to bytecode and then run
+                static_cast<void>(source);
+                return InterpretResult::OK;
+            }
 
         private:
             const Chunk& chunk_;
