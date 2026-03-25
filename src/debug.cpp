@@ -8,7 +8,7 @@ namespace pegasus {
     printf("%-16s ", name.c_str());
 
     printValue(constant);
-
+    printf("\n");
     return offset + 2;
     }
 
@@ -22,7 +22,8 @@ namespace pegasus {
         printf("%-16s ", name.c_str());
 
         printValue(constant);
-
+        printf("\n");
+        
         return offset + 4;
     }
 
@@ -54,6 +55,8 @@ namespace pegasus {
                 return constantInstruction(chunk, "OP_CONSTANT", offset);
             case OpCode::OP_CONSTANT_LONG:
                 return constantLongInstruction(chunk, "OP_CONSTANT_LONG", offset);
+            case OpCode::OP_NEGATE:
+                return simpleInstruction("OP_NEGATE", offset);
             case OpCode::OP_RETURN:
                 return simpleInstruction("OP_RETURN", offset);
             default:

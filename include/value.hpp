@@ -10,9 +10,9 @@ namespace pegasus {
         std::visit([](auto v) {
             using T = decltype(v);
             if constexpr(std::is_same_v<T, double>) {
-                printf("%.2f\n", v);
+                printf("%.2f", v);
             } else {
-                printf("unknown value type\n");
+                printf("unknown value type");
             }
         }, value);
     }
