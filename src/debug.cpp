@@ -55,6 +55,14 @@ namespace pegasus {
                 return constantInstruction(chunk, "OP_CONSTANT", offset);
             case OpCode::OP_CONSTANT_LONG:
                 return constantLongInstruction(chunk, "OP_CONSTANT_LONG", offset);
+            case OpCode::OP_ADD:
+                return simpleInstruction("OP_ADD", offset);
+            case OpCode::OP_SUBTRACT:
+                return simpleInstruction("OP_SUBTRACT", offset);
+            case OpCode::OP_MULTIPLY:
+                return simpleInstruction("OP_MULTIPLY", offset);
+            case OpCode::OP_DIVIDE:
+                return simpleInstruction("OP_DIVIDE", offset);
             case OpCode::OP_NEGATE:
                 return simpleInstruction("OP_NEGATE", offset);
             case OpCode::OP_RETURN:
