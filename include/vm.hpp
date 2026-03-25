@@ -32,8 +32,9 @@ namespace pegasus {
                 try {
                     while(true) {
                         if constexpr(DEBUG_TRACE_EXECUTION) {
+                            printf("%-10s", "");
                             for(Value* slot {stack_.data()}; slot < stackTop_; slot++) {
-                                printf("%-10s[ ", "");
+                                printf("[ ");
                                 printValue(*slot);
                                 printf(" ]");
                             }
@@ -92,7 +93,7 @@ namespace pegasus {
             }
 
             Value pop() {
-                if(stackTop_ <= stack_.data()) {
+                if(stackTop_ == stack_.data()) {
                     throw std::runtime_error("stack underflow");
                 }
                 stackTop_--;

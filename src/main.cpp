@@ -3,27 +3,17 @@
 #include "debug.hpp"
 
 int main() {
-    
     pegasus::Chunk chunk;
-    std::uint8_t constantIndex{static_cast<std::uint8_t>(chunk.addConstant(pegasus::Value{1.2}))};
-    chunk.write(pegasus::OpCode::OP_CONSTANT, 123);
-    chunk.write(constantIndex, 123);
-
-    constantIndex = static_cast<std::uint8_t>(chunk.addConstant(pegasus::Value{3.4}));
-    chunk.write(pegasus::OpCode::OP_CONSTANT, 123);
-    chunk.write(constantIndex, 123);
-
+    chunk.writeConstant(pegasus::Value{1.2}, 123);
+    chunk.writeConstant(pegasus::Value{3.4}, 123);
     chunk.write(pegasus::OpCode::OP_ADD, 123);
-
-    constantIndex = static_cast<std::uint8_t>(chunk.addConstant(pegasus::Value{5.6}));
-    chunk.write(pegasus::OpCode::OP_CONSTANT, 123);
-    chunk.write(constantIndex, 123);
-
+    
+    chunk.writeConstant(pegasus::Value{5.6}, 123);
     chunk.write(pegasus::OpCode::OP_DIVIDE, 123);
     chunk.write(pegasus::OpCode::OP_NEGATE, 123);
     chunk.write(pegasus::OpCode::OP_RETURN, 123);
+    
     pegasus::VM vm{chunk};
     vm.run();
-    // pegasus::disassembleChunk(chunk, "test chunk");
     return 0;
 }
