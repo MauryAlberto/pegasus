@@ -6,6 +6,7 @@
 #include "chunk.hpp"
 #include "debug.hpp"
 #include "value.hpp"
+#include "compiler.hpp"
 
 namespace pegasus {
     inline constexpr int STACK_SIZE = 256;
@@ -80,7 +81,7 @@ namespace pegasus {
             
             static InterpretResult interpret(std::string_view source) {
                 // todo: compile source to bytecode and then run
-                static_cast<void>(source);
+                compile(source);
                 return InterpretResult::OK;
             }
 
