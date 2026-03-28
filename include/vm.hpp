@@ -27,7 +27,7 @@ namespace pegasus {
     class VM {
         public:
             VM() = delete;
-            explicit VM(const Chunk& chunk) : chunk_{chunk}, ip_{chunk_.getCode()} {}
+            explicit VM(Chunk& chunk) : chunk_{&chunk}, ip_{chunk_->getCode()} {}
 
             InterpretResult run() {
                 try {
@@ -40,14 +40,14 @@ namespace pegasus {
                                 printf(" ]");
                             }
                             printf("\n");
-                            disassembleInstruction(chunk_, static_cast<std::size_t>(ip_ - chunk_.getCode()));
+                            disassembleInstruction(chunk_, static_cast<std::size_t>(ip_ - chunk_->getCode()));
                         }
 
                         OpCode instruction{static_cast<OpCode>(*ip_++)};
                         switch(instruction) {
                             case OpCode::OP_CONSTANT: {
                                 const std::uint8_t constantIndex{*ip_++};
-                                Value constant{chunk_.getConstant(constantIndex)};
+                                Value constant{chunk_->getConstant(constantIndex)};
                                 push(constant);
                                 break;
                             }
@@ -56,7 +56,7 @@ namespace pegasus {
                                 const std::size_t midByte{static_cast<std::size_t>(*ip_++)};
                                 const std::size_t highByte{static_cast<std::size_t>(*ip_++)};
                                 const std::size_t constantIndex{(highByte << 16) | (midByte << 8) | lowByte};
-                                Value constant{chunk_.getConstant(constantIndex)};
+                                Value constant{chunk_->getConstant(constantIndex)};
                                 push(constant);
                                 break;
                             }
@@ -79,16 +79,19 @@ namespace pegasus {
                 }
             }
             
-            static InterpretResult interpret(std::string_view source) {
+           InterpretResult interpret(std::string_view source) {
                 // todo: compile source to bytecode and then run
-                compile(source);
-                return InterpretResult::OK;
+                Chunk chunk;
+                if(!compile(source, chunk)) return InterpretResult::COMPILE_ERROR;
+                chunk_ = &chunk;
+                ip_ = chunk_->getCode();
+                return run();
             }
 
         private:
-            const Chunk& chunk_;
-            const std::uint8_t* ip_;
-            std::array<Value, STACK_SIZE> stack_;
+            Chunk* chunk_{nullptr};
+            const std::uint8_t* ip_{nullptr};
+            std::array<Value, STACK_SIZE> stack_{};
             Value* stackTop_ {stack_.data()};
 
             void push(Value value) {

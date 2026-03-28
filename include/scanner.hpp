@@ -27,9 +27,9 @@ namespace pegasus {
     };
 
     struct Token {
-        TokenType type;
-        std::string_view lexeme;
-        int line;
+        TokenType type_;
+        std::string_view lexeme_;
+        int line_;
     };
 
     class Scanner {
@@ -160,7 +160,7 @@ namespace pegasus {
             }
 
             TokenType matchKeyword(std::string_view rest, TokenType type) {
-                std::string_view keyword{start_, current_ - start_};
+                std::string_view keyword{start_, static_cast<size_t>(current_ - start_)};
                 if(keyword == rest) return type;
                 return TokenType::IDENTIFIER;
             }

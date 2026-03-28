@@ -10,13 +10,15 @@
 
 static void repl() {
     std::string line;
+    pegasus::Chunk chunk{};
+    pegasus::VM vm{chunk};
     while(true) {
         printf("> ");
         if(!std::getline(std::cin, line)) {
             printf("\n");
             break;
         } else {
-            pegasus::VM::interpret(line);
+            vm.interpret(line);
         }
     }
 }
@@ -31,8 +33,10 @@ static void runFile(std::string_view path) {
     std::ostringstream buffer;
     buffer << file.rdbuf();
     std::string source{buffer.str()};
+    pegasus::Chunk chunk{};
+    pegasus::VM vm{chunk};
 
-    pegasus::InterpretResult result{pegasus::VM::interpret(source)};
+    pegasus::InterpretResult result{vm.interpret(source)};
     if(result == pegasus::InterpretResult::COMPILE_ERROR) exit(65);
     if(result == pegasus::InterpretResult::RUNTIME_ERROR) exit(70);
 }
