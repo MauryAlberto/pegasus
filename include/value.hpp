@@ -4,7 +4,7 @@
 #include <stdexcept>
 
 namespace pegasus {
-    using Value = std::variant<double>;
+    using Value = std::variant<int, double>;
 
     inline void printValue(const Value& value) {
         std::visit([](auto v) {
