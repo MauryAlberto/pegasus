@@ -6,12 +6,13 @@
 #include <string_view>
 #include "chunk.hpp"
 #include "scanner.hpp"
+#include "debug.hpp"
 
 namespace pegasus {
     class Parser {
         public:
             Parser() = delete;
-            explicit Parser(Scanner& scanner) : scanner_{&scanner} {}
+            explicit Parser(Scanner& scanner) : scanner_{scanner} {}
 
             void advance();
             void consume(TokenType expectedType, std::string_view message);
@@ -19,28 +20,28 @@ namespace pegasus {
             const Token& previousToken() const;
             const Token& currentToken() const;
             bool hadError() const;
+            void errorAt(const Token& token, std::string_view message);
+            void errorAtCurrent(std::string_view message);
+            void error(std::string_view message);
 
         private:
-            Scanner* scanner_{nullptr};
+            Scanner& scanner_;
             Token current_{};
             Token previous_{};
             bool hadError_{false};
             bool panicMode_{false};
-
-            void errorAt(const Token& token, std::string_view message);
-            void errorAtCurrent(std::string_view message);
-            void error(std::string_view message);
     };
 
     class Compiler {
         public:
             Compiler() = delete;
-            Compiler(Parser& parser, Chunk& chunk) : parser_{&parser}, chunk_{&chunk} {}
+            Compiler(Parser& parser, Chunk& chunk) : parser_{parser}, chunk_{&chunk} {}
             bool compile();
 
         private:
-            Parser* parser_{nullptr};
+            Parser& parser_;
             Chunk* chunk_{nullptr};
+            static constexpr int DEBUG_PRINT_CODE = true;
 
             enum class Precedence {
                 PREC_NONE,
@@ -57,6 +58,7 @@ namespace pegasus {
             };
 
             static constexpr int TOKEN_COUNT = static_cast<int>(TokenType::TOKEN_SIZE);
+            static_assert(TOKEN_COUNT == 40, "token count mismatch");
             using ParseFn = void(Compiler::*)();
 
             struct ParseRule {
@@ -65,7 +67,7 @@ namespace pegasus {
                 Precedence precedence;
              };
 
-            ParseRule* getRule(TokenType type);
+            const ParseRule& getRule(TokenType type);
             Chunk* currentChunk();
             void endCompiler();
             void emitByte(OpCode op, int line = -1);

@@ -11,6 +11,8 @@ namespace pegasus {
             using T = decltype(v);
             if constexpr(std::is_same_v<T, double>) {
                 printf("%.2f", v);
+            } else if constexpr(std::is_same_v<T, int>) {
+                printf("%d", v);
             } else {
                 printf("unknown value type");
             }
