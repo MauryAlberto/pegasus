@@ -161,6 +161,7 @@ namespace pegasus {
         
         if(prefixRule == nullptr) {
             parser_.error("expected expression");
+            return;
         }
 
         (this->*prefixRule)();
