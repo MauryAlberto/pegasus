@@ -9,7 +9,7 @@
 #include "compiler.hpp"
 
 namespace pegasus {
-    inline constexpr int STACK_SIZE = 256;
+    inline constexpr int STACK_SIZE = 1024;
 
     enum class InterpretResult {
         OK,

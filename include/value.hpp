@@ -14,7 +14,7 @@ namespace pegasus {
             } else if constexpr(std::is_same_v<T, int>) {
                 printf("%d", v);
             } else {
-                printf("unknown value type");
+                throw std::runtime_error("unknown value type");
             }
         }, value);
     }
