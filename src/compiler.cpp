@@ -17,21 +17,21 @@ namespace pegasus {
         /* SLASH */         {nullptr, &Compiler::binary, Compiler::Precedence::PREC_FACTOR},
         /* STAR */          {nullptr, &Compiler::binary, Compiler::Precedence::PREC_FACTOR},
         // one or two character tokens
-        /* NOT */           {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
-        /* NOT_EQUAL */     {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
+        /* NOT */           {&Compiler::unary, nullptr, Compiler::Precedence::PREC_NONE},
+        /* NOT_EQUAL */     {nullptr, &Compiler::binary, Compiler::Precedence::PREC_EQUALITY},
         /* EQUAL */         {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
-        /* EQUAL_EQUAL */   {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
-        /* GREATER */       {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
-        /* GREATER_EQUAL */ {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
-        /* LESS */          {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
-        /* LESS_EQUAL */    {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
+        /* EQUAL_EQUAL */   {nullptr, &Compiler::binary, Compiler::Precedence::PREC_EQUALITY},
+        /* GREATER */       {nullptr, &Compiler::binary, Compiler::Precedence::PREC_COMPARISON},
+        /* GREATER_EQUAL */ {nullptr, &Compiler::binary, Compiler::Precedence::PREC_COMPARISON},
+        /* LESS */          {nullptr, &Compiler::binary, Compiler::Precedence::PREC_COMPARISON},
+        /* LESS_EQUAL */    {nullptr, &Compiler::binary, Compiler::Precedence::PREC_COMPARISON},
         // literals
         /* IDENTIFIER */    {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
         /* STRING */        {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
         /* NUMBER */        {&Compiler::number, nullptr, Compiler::Precedence::PREC_NONE},
         // keywords
-        /* TRUE */          {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
-        /* FALSE */         {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
+        /* TRUE */          {&Compiler::literal, nullptr, Compiler::Precedence::PREC_NONE},
+        /* FALSE */         {&Compiler::literal, nullptr, Compiler::Precedence::PREC_NONE},
         /* IF */            {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
         /* ELSE */          {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
         /* AND */           {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
@@ -44,7 +44,7 @@ namespace pegasus {
         /* RETURN */        {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
         /* VAR */           {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
         /* THIS */          {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
-        /* NIL */           {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
+        /* NIL */           {&Compiler::literal, nullptr, Compiler::Precedence::PREC_NONE},
         /* SUPER */         {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
 
         /* ERROR */         {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
@@ -133,11 +133,6 @@ namespace pegasus {
         currentChunk()->write(byte, actualLine);
     }
 
-    void Compiler::emitBytes(std::uint8_t byte1, std::uint8_t byte2) {
-        emitByte(byte1);
-        emitByte(byte2);
-    }
-
     void Compiler::emitReturn() {
         emitByte(OpCode::OP_RETURN);
     }
@@ -189,7 +184,8 @@ namespace pegasus {
         parsePrecedence(Precedence::PREC_UNARY);
 
         switch(operatorType) {
-            case TokenType::MINUS: emitByte(OpCode::OP_NEGATE, line); break;
+            case TokenType::MINUS:  emitByte(OpCode::OP_NEGATE, line);break;
+            case TokenType::NOT:    emitByte(OpCode::OP_NOT, line);break;
             default: return;
         }
     }
@@ -200,10 +196,26 @@ namespace pegasus {
         parsePrecedence(static_cast<Precedence>(static_cast<std::size_t>(rule.precedence) + 1));
 
         switch(operatorType) {
-            case TokenType::PLUS:   emitByte(OpCode::OP_ADD);break;
-            case TokenType::MINUS:  emitByte(OpCode::OP_SUBTRACT);break;
-            case TokenType::STAR:   emitByte(OpCode::OP_MULTIPLY);break;
-            case TokenType::SLASH:  emitByte(OpCode::OP_DIVIDE);break;
+            case TokenType::PLUS:           emitByte(OpCode::OP_ADD);break;
+            case TokenType::MINUS:          emitByte(OpCode::OP_SUBTRACT);break;
+            case TokenType::STAR:           emitByte(OpCode::OP_MULTIPLY);break;
+            case TokenType::SLASH:          emitByte(OpCode::OP_DIVIDE);break;
+            case TokenType::NOT:            emitByte(OpCode::OP_NOT);break;
+            case TokenType::NOT_EQUAL:      emitByte(OpCode::OP_EQUAL);emitByte(OpCode::OP_NOT);break;
+            case TokenType::EQUAL_EQUAL:    emitByte(OpCode::OP_EQUAL);break;
+            case TokenType::GREATER:        emitByte(OpCode::OP_GREATER);break;
+            case TokenType::GREATER_EQUAL:  emitByte(OpCode::OP_LESS);emitByte(OpCode::OP_NOT);break;
+            case TokenType::LESS:           emitByte(OpCode::OP_LESS);break;
+            case TokenType::LESS_EQUAL:     emitByte(OpCode::OP_GREATER);emitByte(OpCode::OP_NOT);break;
+            default: return;
+        }
+    }
+
+    void Compiler::literal() {
+        switch(parser_.previousToken().type_) {
+            case TokenType::TRUE:   emitByte(OpCode::OP_TRUE);break;
+            case TokenType::FALSE:  emitByte(OpCode::OP_FALSE);break;
+            case TokenType::NIL:    emitByte(OpCode::OP_NIL);break;
             default: return;
         }
     }

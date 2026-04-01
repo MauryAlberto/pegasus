@@ -78,6 +78,45 @@ TEST_CASE("VM executes OP_DIVIDE", "[vm]") {
     REQUIRE(runChunk(chunk) == InterpretResult::OK);
 }
 
+TEST_CASE("VM executes OP_NOT", "[vm]") {
+    Chunk chunk;
+    chunk.writeConstant(Value{true}, 1);
+    chunk.write(OpCode::OP_NOT, 1);
+    chunk.write(OpCode::OP_RETURN, 1);
+
+    REQUIRE(runChunk(chunk) == InterpretResult::OK);
+}
+
+TEST_CASE("VM executes OP_EQUAL", "[vm]") {
+    Chunk chunk;
+    chunk.writeConstant(Value{10}, 1);
+    chunk.writeConstant(Value{10}, 1);
+    chunk.write(OpCode::OP_EQUAL, 1);
+    chunk.write(OpCode::OP_RETURN, 1);
+
+    REQUIRE(runChunk(chunk) == InterpretResult::OK);
+}
+
+TEST_CASE("VM executes OP_GREATER", "[vm]") {
+    Chunk chunk;
+    chunk.writeConstant(Value{10}, 1);
+    chunk.writeConstant(Value{5}, 1);
+    chunk.write(OpCode::OP_GREATER, 1);
+    chunk.write(OpCode::OP_RETURN, 1);
+
+    REQUIRE(runChunk(chunk) == InterpretResult::OK);
+}
+
+TEST_CASE("VM executes OP_LESS", "[vm]") {
+    Chunk chunk;
+    chunk.writeConstant(Value{5}, 1);
+    chunk.writeConstant(Value{10}, 1);
+    chunk.write(OpCode::OP_LESS, 1);
+    chunk.write(OpCode::OP_RETURN, 1);
+
+    REQUIRE(runChunk(chunk) == InterpretResult::OK);
+}
+
 TEST_CASE("VM handles mixed int/double arithmetic", "[vm]") {
     Chunk chunk;
     chunk.writeConstant(Value{2}, 1);
@@ -155,6 +194,10 @@ TEST_CASE("interpret() returns OK for float arithmetic", "[vm]") {
 
 TEST_CASE("interpret() returns OK for mixed int/float expression", "[vm]") {
     REQUIRE(interpretSource("10 / 3.0") == InterpretResult::OK);
+}
+
+TEST_CASE("interpret returns OK for complex comparison logic", "[vm]") {
+    REQUIRE(interpretSource("!(5 - 4 > 3 * 2 == !nil)") == InterpretResult::OK);
 }
 
 // Edge: single number

@@ -72,7 +72,6 @@ namespace pegasus {
             void endCompiler();
             void emitByte(OpCode op, int line = -1);
             void emitByte(std::uint8_t byte, int line = -1);
-            void emitBytes(std::uint8_t byte1, std::uint8_t byte2);
             void emitReturn();
             void emitConstant(Value value);
             void number();
@@ -81,6 +80,7 @@ namespace pegasus {
             void grouping();
             void unary();
             void binary();
+            void literal();
 
             static const std::array<ParseRule, TOKEN_COUNT> rules;
     };

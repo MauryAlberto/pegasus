@@ -32,11 +32,18 @@ namespace pegasus {
                         push(constant);
                         break;
                     }
-                    case OpCode::OP_ADD:        {binaryOp(BinaryOp::ADD); break;}
-                    case OpCode::OP_SUBTRACT:   {binaryOp(BinaryOp::SUBTRACT); break;}
-                    case OpCode::OP_MULTIPLY:   {binaryOp(BinaryOp::MULTIPLY); break;}
-                    case OpCode::OP_DIVIDE:     {binaryOp(BinaryOp::DIVIDE); break;}
+                    case OpCode::OP_ADD:        {binaryOp(BinaryOp::ADD);break;}
+                    case OpCode::OP_SUBTRACT:   {binaryOp(BinaryOp::SUBTRACT);break;}
+                    case OpCode::OP_MULTIPLY:   {binaryOp(BinaryOp::MULTIPLY);break;}
+                    case OpCode::OP_DIVIDE:     {binaryOp(BinaryOp::DIVIDE);break;}
                     case OpCode::OP_NEGATE:     {push(negateValue(pop()));break;}
+                    case OpCode::OP_TRUE:       {push(Value{true});break;}
+                    case OpCode::OP_FALSE:      {push(Value{false});break;}
+                    case OpCode::OP_NIL:        {push(Value{0});break;}
+                    case OpCode::OP_NOT:        {push(notValue(pop()));break;}
+                    case OpCode::OP_EQUAL:      {binaryOp(BinaryOp::EQUAL);break;}
+                    case OpCode::OP_GREATER:    {binaryOp(BinaryOp::GREATER);break;}
+                    case OpCode::OP_LESS:       {binaryOp(BinaryOp::LESS);break;}
                     case OpCode::OP_RETURN:
                         printValue(pop());
                         printf("\n");
@@ -87,9 +94,12 @@ namespace pegasus {
             if constexpr(std::is_arithmetic_v<A> && std::is_arithmetic_v<B>) {
                 switch(op) {
                     case BinaryOp::ADD:         {push(Value{aVal + bVal});break;}
-                    case BinaryOp::SUBTRACT:    {push(Value{aVal - bVal}); break;}
-                    case BinaryOp::MULTIPLY:    {push(Value{aVal * bVal}); break;}
-                    case BinaryOp::DIVIDE:      {push(Value{aVal / bVal}); break;}
+                    case BinaryOp::SUBTRACT:    {push(Value{aVal - bVal});break;}
+                    case BinaryOp::MULTIPLY:    {push(Value{aVal * bVal});break;}
+                    case BinaryOp::DIVIDE:      {push(Value{aVal / bVal});break;}
+                    case BinaryOp::EQUAL:       {push(Value{aVal == bVal});break;}
+                    case BinaryOp::GREATER:     {push(Value{aVal > bVal});break;}
+                    case BinaryOp::LESS:        {push(Value{aVal < bVal});break;}
                     default:
                         throw std::runtime_error("unknown binary operator");
                 }

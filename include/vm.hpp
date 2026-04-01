@@ -21,7 +21,10 @@ namespace pegasus {
         ADD,
         SUBTRACT,
         MULTIPLY,
-        DIVIDE
+        DIVIDE,
+        EQUAL,
+        GREATER,
+        LESS
     };
 
     class VM {

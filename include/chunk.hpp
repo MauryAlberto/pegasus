@@ -7,14 +7,21 @@
 
 namespace pegasus {
     enum class OpCode : std::uint8_t {
-    OP_CONSTANT,
-    OP_CONSTANT_LONG,
-    OP_ADD,
-    OP_SUBTRACT,
-    OP_MULTIPLY,
-    OP_DIVIDE,
-    OP_NEGATE,
-    OP_RETURN
+        OP_CONSTANT,
+        OP_CONSTANT_LONG,
+        OP_ADD,
+        OP_SUBTRACT,
+        OP_MULTIPLY,
+        OP_DIVIDE,
+        OP_NEGATE,
+        OP_NIL,
+        OP_TRUE,
+        OP_FALSE,
+        OP_NOT,
+        OP_EQUAL,
+        OP_GREATER,
+        OP_LESS,
+        OP_RETURN
     };
 
     struct LineInfo {

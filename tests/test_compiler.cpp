@@ -6,7 +6,7 @@ using namespace pegasus;
 
 // Helper: compile source and return the populated chunk
 // Returns true on success; chunk is populated in-place.
-static bool compileSource(const std::string& source, Chunk& chunk) {
+static bool compileSource(std::string_view source, Chunk& chunk) {
     return compile(source, chunk);
 }
 
@@ -95,6 +95,52 @@ TEST_CASE("Compiler emits OP_DIVIDE for division", "[compiler]") {
     REQUIRE(compileSource("8 / 2", chunk));
     auto ops = opcodes(chunk);
     REQUIRE(ops[2] == OpCode::OP_DIVIDE);
+}
+
+// logical and comparison
+TEST_CASE("Compiler emits OP_NOT for logical !", "[compiler]") {
+    Chunk chunk;
+    REQUIRE(compileSource("!true", chunk));
+    auto ops = opcodes(chunk);
+    REQUIRE(ops[1] == OpCode::OP_NOT);
+}
+
+TEST_CASE("Compiler emits OP_EQUAL and OP_NOT for comparison !=", "[compiler]") {
+    Chunk chunk;
+    REQUIRE(compileSource("true != false", chunk));
+    auto ops = opcodes(chunk);
+    REQUIRE(ops[2] == OpCode::OP_EQUAL);
+    REQUIRE(ops[3] == OpCode::OP_NOT);
+}
+
+TEST_CASE("Compiler emits OP_EQUAL for comparison ==", "[compiler]") {
+    Chunk chunk;
+    REQUIRE(compileSource("10 == 10", chunk));
+    auto ops = opcodes(chunk);
+    REQUIRE(ops[2] == OpCode::OP_EQUAL);
+}
+
+TEST_CASE("Compiler emits OP_LESS and OP_NOT for comparison >=", "[compiler]") {
+    Chunk chunk;
+    REQUIRE(compileSource("10 >= 5", chunk));
+    auto ops = opcodes(chunk);
+    REQUIRE(ops[2] == OpCode::OP_LESS);
+    REQUIRE(ops[3] == OpCode::OP_NOT);
+}
+
+TEST_CASE("Compiler emits OP_LESS for  comparison <", "[compiler]") {
+    Chunk chunk;
+    REQUIRE(compileSource("5 < 10", chunk));
+    auto ops = opcodes(chunk);
+    REQUIRE(ops[2] == OpCode::OP_LESS);
+}
+
+TEST_CASE("Compiler emits OP_GREATER and OP_NOT for comparison <=", "[compiler]") {
+    Chunk chunk;
+    REQUIRE(compileSource("5 <= 10", chunk));
+    auto ops = opcodes(chunk);
+    REQUIRE(ops[2] == OpCode::OP_GREATER );
+    REQUIRE(ops[3] == OpCode::OP_NOT);
 }
 
 // Operator precedence

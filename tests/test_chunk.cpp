@@ -64,10 +64,7 @@ TEST_CASE("writeConstant emits OP_CONSTANT for small index", "[chunk]") {
     REQUIRE(std::get<int>(chunk.getConstant(idx)) == 100);
 }
 
-// ============================================================
 // writeConstant() – long path (index > 255)
-// ============================================================
-
 TEST_CASE("writeConstant emits OP_CONSTANT_LONG for large index", "[chunk]") {
     Chunk chunk;
 
