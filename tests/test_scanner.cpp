@@ -80,7 +80,7 @@ TEST_CASE("Scanner scans a simple string", "[scanner]") {
     std::string src = "\"hello world\"";
     auto tokens = scanAll(src);
     REQUIRE(tokens[0].type_ == TokenType::STRING);
-    REQUIRE(tokens[0].lexeme_ == "\"hello world\"");
+    REQUIRE(tokens[0].lexeme_ == "hello world");
 }
 
 TEST_CASE("Unterminated string produces ERROR token", "[scanner]") {

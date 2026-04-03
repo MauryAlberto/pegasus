@@ -27,7 +27,7 @@ namespace pegasus {
         /* LESS_EQUAL */    {nullptr, &Compiler::binary, Compiler::Precedence::PREC_COMPARISON},
         // literals
         /* IDENTIFIER */    {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
-        /* STRING */        {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
+        /* STRING */        {&Compiler::string, nullptr, Compiler::Precedence::PREC_NONE},
         /* NUMBER */        {&Compiler::number, nullptr, Compiler::Precedence::PREC_NONE},
         // keywords
         /* TRUE */          {&Compiler::literal, nullptr, Compiler::Precedence::PREC_NONE},
@@ -218,5 +218,9 @@ namespace pegasus {
             case TokenType::NIL:    emitByte(OpCode::OP_NIL);break;
             default: return;
         }
+    }
+
+    void Compiler::string() {
+        emitConstant(Value{parser_.previousToken().lexeme_});
     }
 }

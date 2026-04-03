@@ -1,10 +1,12 @@
 #pragma once
 #include <cstdio>
+#include <string>
 #include <variant>
 #include <stdexcept>
+#include <string_view>
 
 namespace pegasus {
-    using Value = std::variant<int, double, bool>;
+    using Value = std::variant<int, double, bool, std::string, std::string_view>;
 
     inline void printValue(const Value& value) {
         std::visit([](auto v) {
@@ -15,6 +17,10 @@ namespace pegasus {
                 printf("%g", v);
             } else if constexpr(std::is_same_v<T, bool>) {
                 printf("%s", v ? "true" : "false");
+            } else if constexpr(std::is_same_v<T, std::string_view>) {
+                printf("%.*s", static_cast<int>(v.size()), v.data());
+            } else if constexpr(std::is_same_v<T, std::string>){
+                printf("%s", v.c_str());
             } else {
                 throw std::runtime_error("unknown value type");
             }
@@ -34,7 +40,12 @@ namespace pegasus {
     
     inline Value notValue(const Value& value) {
         return std::visit([](auto v) -> Value {
-            return Value{!v};
+            using T = decltype(v);
+            if constexpr(std::is_arithmetic_v<T>) {
+                return Value{!v};
+            } else {
+                throw std::runtime_error("operand must be a number");
+            }
         }, value);
     }
 }

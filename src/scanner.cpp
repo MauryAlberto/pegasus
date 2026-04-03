@@ -76,6 +76,14 @@ namespace pegasus {
     }
 
     Token Scanner::makeToken(TokenType type) {
+        if(type == TokenType::STRING) {
+            return Token{
+                type,                                                 // example: "hello world" must become hello world
+                std::string_view{start_ + 1, static_cast<std::size_t>(current_ - start_ - 2)}, 
+                line_
+            };
+        }
+
         return Token{
             type,
             std::string_view{start_, static_cast<std::size_t>(current_ - start_)},

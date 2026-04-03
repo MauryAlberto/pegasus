@@ -97,7 +97,7 @@ TEST_CASE("Compiler emits OP_DIVIDE for division", "[compiler]") {
     REQUIRE(ops[2] == OpCode::OP_DIVIDE);
 }
 
-// logical and comparison
+// Logical and comparison
 TEST_CASE("Compiler emits OP_NOT for logical !", "[compiler]") {
     Chunk chunk;
     REQUIRE(compileSource("!true", chunk));
@@ -219,7 +219,7 @@ TEST_CASE("Unary minus in expression: -1 + 2", "[compiler]") {
 // Error handling
 TEST_CASE("Compile fails on empty input", "[compiler]") {
     Chunk chunk;
-    // Empty string → advance gets EOF, parsePrecedence fails
+    // Empty string -> advance gets EOF, parsePrecedence fails
     REQUIRE_FALSE(compileSource("", chunk));
 }
 
@@ -236,4 +236,20 @@ TEST_CASE("Compile fails on unexpected token", "[compiler]") {
 TEST_CASE("Compile fails on trailing garbage", "[compiler]") {
     Chunk chunk;
     REQUIRE_FALSE(compileSource("1 2", chunk));
+}
+
+// Strings
+TEST_CASE("Concatenating two strings", "[compiler]") {
+    Chunk chunk;
+    REQUIRE(compileSource("\"hello\" + \" world\"", chunk));
+}
+
+TEST_CASE("String comparisons", "[compiler]") {
+    Chunk chunk;
+    REQUIRE(compileSource("\"hello\" == \"hello\"", chunk));
+    REQUIRE(compileSource("\"apple\" > \"bannana\"", chunk));
+    REQUIRE(compileSource("\"apple\" >= \"apple\"", chunk));
+    REQUIRE(compileSource("\"bannana\" < \"apple\"", chunk));
+    REQUIRE(compileSource("\"bannana\" <= \"bannana\"", chunk));
+    REQUIRE(compileSource("\"apple\" != \"bannana\"", chunk));
 }

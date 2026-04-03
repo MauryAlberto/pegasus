@@ -59,7 +59,6 @@ namespace pegasus {
     }
     
     InterpretResult VM::interpret(std::string_view source) {
-        // todo: compile source to bytecode and then run
         Chunk chunk;
         if(!compile(source, chunk)) return InterpretResult::COMPILE_ERROR;
         chunk_ = &chunk;
@@ -103,8 +102,27 @@ namespace pegasus {
                     default:
                         throw std::runtime_error("unknown binary operator");
                 }
+            } else if constexpr(std::is_same_v<A, std::string_view> && std::is_same_v<B, std::string_view>) {
+                switch(op) {
+                    case BinaryOp::ADD:         {push(Value{std::string{aVal} + std::string{bVal}});break;}
+                    case BinaryOp::EQUAL:       {push(Value{aVal == bVal});break;}
+                    case BinaryOp::GREATER:     {push(Value{aVal > bVal});break;}
+                    case BinaryOp::LESS:        {push(Value{aVal < bVal});break;}
+                    default:
+                        throw std::runtime_error("invalid operator for strings");
+                }
+
+            } else if constexpr(std::is_same_v<A, std::string> && std::is_same_v<B, std::string>) {
+                switch(op) {
+                    case BinaryOp::ADD:         {push(Value{std::string{aVal} + std::string{bVal}});break;}
+                    case BinaryOp::EQUAL:       {push(Value{aVal == bVal});break;}
+                    case BinaryOp::GREATER:     {push(Value{aVal > bVal});break;}
+                    case BinaryOp::LESS:        {push(Value{aVal < bVal});break;}
+                    default:
+                        throw std::runtime_error("invalid operator for strings");
+                }
             } else {
-                throw std::runtime_error("operands must be numbers");
+                throw std::runtime_error("operands must be of same type for binary operations");
             }
 
         }, a, b);

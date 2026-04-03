@@ -200,7 +200,19 @@ TEST_CASE("interpret returns OK for complex comparison logic", "[vm]") {
     REQUIRE(interpretSource("!(5 - 4 > 3 * 2 == !nil)") == InterpretResult::OK);
 }
 
+TEST_CASE("interpret returns OK for string contatenation", "[vm]") {
+    REQUIRE(interpretSource("\"hello\" + \" world\"") == InterpretResult::OK);
+}
+
+TEST_CASE("interpret returns OK for string comparions", "[vm]") {
+    REQUIRE(interpretSource("\"hello\" == \"hello\"") == InterpretResult::OK);
+    REQUIRE(interpretSource("\"apple\" > \"bannana\"") == InterpretResult::OK);
+    REQUIRE(interpretSource("\"bannana\" < \"apple\"") == InterpretResult::OK);
+    REQUIRE(interpretSource("\"bannana\" <= \"bannana\"") == InterpretResult::OK);
+}
+
 // Edge: single number
 TEST_CASE("interpret() returns OK for a bare number", "[vm]") {
     REQUIRE(interpretSource("99") == InterpretResult::OK);
 }
+

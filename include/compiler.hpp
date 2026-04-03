@@ -81,6 +81,7 @@ namespace pegasus {
             void unary();
             void binary();
             void literal();
+            void string();
 
             static const std::array<ParseRule, TOKEN_COUNT> rules;
     };
