@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <cstddef>
 #include <variant>
+#include <type_traits>
 #include "value.hpp"
 
 namespace pegasus {
@@ -21,6 +22,12 @@ namespace pegasus {
         OP_EQUAL,
         OP_GREATER,
         OP_LESS,
+        OP_PRINT,
+        OP_POP,
+        OP_DEFINE_GLOBAL,
+        OP_DEFINE_GLOBAL_LONG,
+        OP_GET_GLOBAL,
+        OP_GET_GLOBAL_LONG,
         OP_RETURN
     };
 
@@ -34,7 +41,7 @@ namespace pegasus {
             Chunk();
             void write(OpCode op, int lineNum);
             void write(std::uint8_t byte, int lineNum);
-            void writeConstant(Value value, int lineNum);
+            std::size_t writeConstant(Value value, int lineNum);
             std::size_t addConstant(Value value);
             Value getConstant(std::size_t constantIndex) const;
             const std::uint8_t* getCode() const;

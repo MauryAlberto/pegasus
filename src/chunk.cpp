@@ -21,7 +21,7 @@ namespace pegasus {
         return constants_.size() - 1;
     }
 
-    void Chunk::writeConstant(Value value, int lineNum) {
+    std::size_t Chunk::writeConstant(Value value, int lineNum) {
         std::size_t constantIndex = addConstant(value);
 
         if(constantIndex <= 255) {
@@ -33,6 +33,8 @@ namespace pegasus {
             write(static_cast<std::uint8_t>((constantIndex >> 8) & 0xFF), lineNum);
             write(static_cast<std::uint8_t>((constantIndex >> 16) & 0xFF), lineNum);
         }
+
+        return constantIndex;
     }
 
     void Chunk::free() {

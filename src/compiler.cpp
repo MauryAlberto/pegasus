@@ -26,7 +26,7 @@ namespace pegasus {
         /* LESS */          {nullptr, &Compiler::binary, Compiler::Precedence::PREC_COMPARISON},
         /* LESS_EQUAL */    {nullptr, &Compiler::binary, Compiler::Precedence::PREC_COMPARISON},
         // literals
-        /* IDENTIFIER */    {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
+        /* IDENTIFIER */    {&Compiler::variable, nullptr, Compiler::Precedence::PREC_NONE},
         /* STRING */        {&Compiler::string, nullptr, Compiler::Precedence::PREC_NONE},
         /* NUMBER */        {&Compiler::number, nullptr, Compiler::Precedence::PREC_NONE},
         // keywords
@@ -77,6 +77,14 @@ namespace pegasus {
 
     bool Parser::hadError() const { return hadError_; }
 
+    bool Parser::isInPanicMode() const {
+        return panicMode_;
+    }
+
+    void Parser::resetPanicMode() {
+        panicMode_ = false;
+    }
+
     void Parser::errorAt(const Token& token, std::string_view message) {
         if(panicMode_) return;
         panicMode_ = true;
@@ -104,8 +112,7 @@ namespace pegasus {
 
     bool Compiler::compile() {
         parser_.advance();
-        expression();
-        parser_.consume(TokenType::EOF_, "expect end of expression");
+        while(!match(TokenType::EOF_)) declaration();
         endCompiler();
         return !parser_.hadError();
     }
@@ -141,15 +148,6 @@ namespace pegasus {
         currentChunk()->writeConstant(value, parser_.previousLine());
     }   
 
-    void Compiler::number() {
-        std::string_view lexeme{parser_.previousToken().lexeme_};
-        if(lexeme.find('.') != std::string_view::npos) {
-            emitConstant(Value{std::stod(std::string{lexeme})});
-        } else {
-            emitConstant(Value{std::stoi(std::string{lexeme})});
-        }
-    }
-
     void Compiler::parsePrecedence(Precedence precedence) {
         parser_.advance();
         ParseFn prefixRule{getRule(parser_.previousToken().type_).prefix};
@@ -165,6 +163,103 @@ namespace pegasus {
             parser_.advance();
             ParseFn infixRule{getRule(parser_.previousToken().type_).infix};
             (this->*infixRule)();
+        }
+    }
+
+    void Compiler::declaration() {
+        if(match(TokenType::VAR)) {
+            varDeclaration();
+        } else {
+            statement();
+        }
+
+        if(parser_.isInPanicMode()) synchronize();
+    }
+
+    void Compiler::varDeclaration() {
+        std::size_t global{parseVariable("expect variable name")};
+
+        if(match(TokenType::EQUAL)) {
+            expression();
+        } else {
+            emitByte(OpCode::OP_NIL);
+        }
+
+        parser_.consume(TokenType::SEMICOLON, "expected ';' after variable declaration");
+        defineVariable(global);
+    }
+
+    std::size_t Compiler::parseVariable(std::string_view errorMessage) {
+        parser_.consume(TokenType::IDENTIFIER, errorMessage);
+        return chunk_->addConstant(Value{parser_.previousToken().lexeme_});
+    }
+
+    void Compiler::defineVariable(const std::size_t global) {
+        if(global <= 255) {
+            emitByte(OpCode::OP_DEFINE_GLOBAL);
+            emitByte(static_cast<std::uint8_t>(global));
+        } else {
+            emitByte(OpCode::OP_DEFINE_GLOBAL_LONG);
+            emitByte(static_cast<std::uint8_t>(global & 0xFF));
+            emitByte(static_cast<std::uint8_t>((global >> 8) & 0xFF));
+            emitByte(static_cast<std::uint8_t>((global >> 16) & 0xFF));
+        }
+    }
+
+    void Compiler::statement() {
+        if(match(TokenType::PRINT)) {
+            printStatement();
+        } else {
+            expressionStatement();
+        }
+    }
+
+    void Compiler::synchronize() {
+        parser_.resetPanicMode();
+
+        while(parser_.currentToken().type_ != TokenType::EOF_) {
+            if(parser_.previousToken().type_ == TokenType::SEMICOLON) return;
+            switch(parser_.currentToken().type_) {
+                case TokenType::CLASS:
+                case TokenType::FUN:
+                case TokenType::VAR:
+                case TokenType::FOR:
+                case TokenType::IF:
+                case TokenType::WHILE:
+                case TokenType::PRINT:
+                case TokenType::RETURN:
+                    return;
+                default:;
+            }
+
+            parser_.advance();
+        }
+    }
+
+    bool Compiler::match(TokenType type) {
+        if(parser_.currentToken().type_ != type) return false;
+        parser_.advance();
+        return true;
+    }
+
+    void Compiler::printStatement() {
+        expression();
+        parser_.consume(TokenType::SEMICOLON, "expected ';' after value");
+        emitByte(OpCode::OP_PRINT);
+    }
+
+    void Compiler::expressionStatement() {
+        expression();
+        parser_.consume(TokenType::SEMICOLON, "expected ';' after expression");
+        emitByte(OpCode::OP_POP);
+    }
+
+    void Compiler::number() {
+        std::string_view lexeme{parser_.previousToken().lexeme_};
+        if(lexeme.find('.') != std::string_view::npos) {
+            emitConstant(Value{std::stod(std::string{lexeme})});
+        } else {
+            emitConstant(Value{std::stoi(std::string{lexeme})});
         }
     }
 
@@ -221,6 +316,24 @@ namespace pegasus {
     }
 
     void Compiler::string() {
-        emitConstant(Value{parser_.previousToken().lexeme_});
+        emitConstant(Value{std::string(parser_.previousToken().lexeme_)});
+    }
+    
+    void Compiler::variable() {
+        namedVariable(parser_.previousToken());
+    }
+
+    void Compiler::namedVariable(const Token& name) {
+        std::size_t arg{chunk_->addConstant(Value{name.lexeme_})};
+
+        if(arg <= 255) {
+            emitByte(OpCode::OP_GET_GLOBAL);
+            emitByte(static_cast<std::uint8_t>(arg));
+        } else {
+            emitByte(OpCode::OP_GET_GLOBAL_LONG);
+            emitByte(static_cast<std::uint8_t>(arg & 0xFF));
+            emitByte(static_cast<std::uint8_t>((arg >> 8) & 0xFF));
+            emitByte(static_cast<std::uint8_t>((arg >> 16) & 0xFF));
+        }
     }
 }

@@ -32,6 +32,99 @@ namespace pegasus {
                         push(constant);
                         break;
                     }
+
+                    case OpCode::OP_DEFINE_GLOBAL: {
+                        const std::size_t constantIndex{*ip_++};
+                        Value identifier{chunk_->getConstant(constantIndex)};
+
+                        std::string_view variableName{std::visit([](auto&& v) -> std::string_view {
+                            using T = std::decay_t<decltype(v)>;
+                            if constexpr(std::is_same_v<T, std::string_view> || std::is_same_v<T, std::string>) {
+                                return v;
+                            } else {
+                                throw std::runtime_error("identifier must be a string");
+                            }
+                        }, identifier)};
+
+                        std::string_view internedName{pool_.intern(variableName)};
+                        globalVariables_[internedName] = peek(0);
+                        pop();
+                        break;
+                    }
+
+                    case OpCode::OP_DEFINE_GLOBAL_LONG: {
+                        const std::size_t lowByte{static_cast<std::size_t>(*ip_++)};
+                        const std::size_t midByte{static_cast<std::size_t>(*ip_++)};
+                        const std::size_t highByte{static_cast<std::size_t>(*ip_++)};
+                        const std::size_t constantIndex{(highByte << 16) | (midByte << 8) | lowByte};
+                        Value identifier{chunk_->getConstant(constantIndex)};
+
+                        std::string_view variableName{std::visit([](auto&& v) -> std::string_view {
+                            using T = std::decay_t<decltype(v)>;
+                            if constexpr(std::is_same_v<T, std::string_view> || std::is_same_v<T, std::string>) {
+                                return v;
+                            } else {
+                                throw std::runtime_error("identifier must be a string");
+                            }
+                        }, identifier)};
+
+                        std::string_view internedName{pool_.intern(variableName)};
+                        globalVariables_[internedName] = peek(0);
+                        pop();
+                        break;
+                    }
+
+                    case OpCode::OP_GET_GLOBAL: {
+                        const std::size_t constantIndex{static_cast<std::size_t>(*ip_++)};
+                        Value identifier{chunk_->getConstant(constantIndex)};
+
+                        std::string_view variableName{std::visit([](auto&& v) -> std::string_view {
+                            using T = std::decay_t<decltype(v)>;
+                            if constexpr(std::is_same_v<T, std::string_view> || std::is_same_v<T, std::string>) {
+                                return v;
+                            } else {
+                                throw std::runtime_error("identifier must be a string");
+                            }
+                        }, identifier)};
+
+                        std::string_view internedName{pool_.intern(variableName)};
+
+                        auto it{globalVariables_.find(internedName)};
+                        if(it == globalVariables_.end()) {
+                            throw std::runtime_error("undefined variable");
+                        }
+
+                        push(it->second);
+                        break;
+                    }
+
+                    case OpCode::OP_GET_GLOBAL_LONG: {
+                        const std::size_t lowByte{static_cast<std::size_t>(*ip_++)};
+                        const std::size_t midByte{static_cast<std::size_t>(*ip_++)};
+                        const std::size_t highByte{static_cast<std::size_t>(*ip_++)};
+                        const std::size_t constantIndex{(highByte << 16) | (midByte << 8) | lowByte};
+                        Value identifier{chunk_->getConstant(constantIndex)};
+
+                        std::string_view variableName{std::visit([](auto&& v) -> std::string_view {
+                            using T = std::decay_t<decltype(v)>;
+                            if constexpr(std::is_same_v<T, std::string_view> || std::is_same_v<T, std::string>) {
+                                return v;
+                            } else {
+                                throw std::runtime_error("identifier must be a string");
+                            }
+                        }, identifier)};
+
+                        std::string_view internedName{pool_.intern(variableName)};
+
+                        auto it{globalVariables_.find(internedName)};
+                        if(it == globalVariables_.end()) {
+                            throw std::runtime_error("undefined variable");
+                        }
+
+                        push(it->second);
+                        break;
+                    }
+
                     case OpCode::OP_ADD:        {binaryOp(BinaryOp::ADD);break;}
                     case OpCode::OP_SUBTRACT:   {binaryOp(BinaryOp::SUBTRACT);break;}
                     case OpCode::OP_MULTIPLY:   {binaryOp(BinaryOp::MULTIPLY);break;}
@@ -44,9 +137,9 @@ namespace pegasus {
                     case OpCode::OP_EQUAL:      {binaryOp(BinaryOp::EQUAL);break;}
                     case OpCode::OP_GREATER:    {binaryOp(BinaryOp::GREATER);break;}
                     case OpCode::OP_LESS:       {binaryOp(BinaryOp::LESS);break;}
+                    case OpCode::OP_PRINT:      {printValue(pop());printf("\n");break;}
+                    case OpCode::OP_POP:        {pop();break;}
                     case OpCode::OP_RETURN:
-                        printValue(pop());
-                        printf("\n");
                         return InterpretResult::OK;
                     default:
                         return InterpretResult::RUNTIME_ERROR;
@@ -80,15 +173,22 @@ namespace pegasus {
         }
         stackTop_--;
         return *stackTop_;
-    } 
+    }
+
+    Value VM::peek(int distance) {
+        if(stackTop_ - distance - 1 < stack_.data()) {
+            throw std::runtime_error("invalid peek of stack");
+        }
+        return stackTop_[-distance - 1];
+    }
 
     void VM::binaryOp(BinaryOp op) {
         Value b{pop()};
         Value a{pop()};
         
-        std::visit([&op, this](auto aVal, auto bVal) {
-            using A = decltype(aVal);
-            using B = decltype(bVal);
+        std::visit([&op, this](auto&& aVal, auto&& bVal) {
+            using A = std::decay_t<decltype(aVal)>;
+            using B = std::decay_t<decltype(bVal)>;
 
             if constexpr(std::is_arithmetic_v<A> && std::is_arithmetic_v<B>) {
                 switch(op) {

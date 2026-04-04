@@ -29,7 +29,7 @@ static std::vector<OpCode> opcodes(const Chunk& chunk) {
 // Number literals
 TEST_CASE("Compiler emits constant for integer literal", "[compiler]") {
     Chunk chunk;
-    REQUIRE(compileSource("42", chunk));
+    REQUIRE(compileSource("42;", chunk));
 
     auto ops = opcodes(chunk);
     REQUIRE(ops.size() >= 2);
@@ -42,7 +42,7 @@ TEST_CASE("Compiler emits constant for integer literal", "[compiler]") {
 
 TEST_CASE("Compiler emits constant for floating-point literal", "[compiler]") {
     Chunk chunk;
-    REQUIRE(compileSource("3.14", chunk));
+    REQUIRE(compileSource("3.14;", chunk));
 
     std::uint8_t idx = chunk.getRawByte(1);
     REQUIRE_THAT(std::get<double>(chunk.getConstant(idx)),
@@ -52,47 +52,49 @@ TEST_CASE("Compiler emits constant for floating-point literal", "[compiler]") {
 // Unary negation
 TEST_CASE("Compiler emits OP_NEGATE for unary minus", "[compiler]") {
     Chunk chunk;
-    REQUIRE(compileSource("-7", chunk));
+    REQUIRE(compileSource("-7;", chunk));
 
     auto ops = opcodes(chunk);
     // OP_CONSTANT, OP_NEGATE, OP_RETURN
-    REQUIRE(ops.size() == 3);
+    REQUIRE(ops.size() == 4);
     REQUIRE(ops[0] == OpCode::OP_CONSTANT);
     REQUIRE(ops[1] == OpCode::OP_NEGATE);
-    REQUIRE(ops[2] == OpCode::OP_RETURN);
+    REQUIRE(ops[2] == OpCode::OP_POP);
+    REQUIRE(ops[3] == OpCode::OP_RETURN);
 }
 
 // Binary arithmetic
 TEST_CASE("Compiler emits OP_ADD for addition", "[compiler]") {
     Chunk chunk;
-    REQUIRE(compileSource("1 + 2", chunk));
+    REQUIRE(compileSource("1 + 2;", chunk));
 
     auto ops = opcodes(chunk);
     // CONST 1, CONST 2, OP_ADD, OP_RETURN
-    REQUIRE(ops.size() == 4);
+    REQUIRE(ops.size() == 5);
     REQUIRE(ops[0] == OpCode::OP_CONSTANT);
     REQUIRE(ops[1] == OpCode::OP_CONSTANT);
     REQUIRE(ops[2] == OpCode::OP_ADD);
-    REQUIRE(ops[3] == OpCode::OP_RETURN);
+    REQUIRE(ops[3] == OpCode::OP_POP);
+    REQUIRE(ops[4] == OpCode::OP_RETURN);
 }
 
 TEST_CASE("Compiler emits OP_SUBTRACT for subtraction", "[compiler]") {
     Chunk chunk;
-    REQUIRE(compileSource("5 - 3", chunk));
+    REQUIRE(compileSource("5 - 3;", chunk));
     auto ops = opcodes(chunk);
     REQUIRE(ops[2] == OpCode::OP_SUBTRACT);
 }
 
 TEST_CASE("Compiler emits OP_MULTIPLY for multiplication", "[compiler]") {
     Chunk chunk;
-    REQUIRE(compileSource("4 * 6", chunk));
+    REQUIRE(compileSource("4 * 6;", chunk));
     auto ops = opcodes(chunk);
     REQUIRE(ops[2] == OpCode::OP_MULTIPLY);
 }
 
 TEST_CASE("Compiler emits OP_DIVIDE for division", "[compiler]") {
     Chunk chunk;
-    REQUIRE(compileSource("8 / 2", chunk));
+    REQUIRE(compileSource("8 / 2;", chunk));
     auto ops = opcodes(chunk);
     REQUIRE(ops[2] == OpCode::OP_DIVIDE);
 }
@@ -100,14 +102,14 @@ TEST_CASE("Compiler emits OP_DIVIDE for division", "[compiler]") {
 // Logical and comparison
 TEST_CASE("Compiler emits OP_NOT for logical !", "[compiler]") {
     Chunk chunk;
-    REQUIRE(compileSource("!true", chunk));
+    REQUIRE(compileSource("!true;", chunk));
     auto ops = opcodes(chunk);
     REQUIRE(ops[1] == OpCode::OP_NOT);
 }
 
 TEST_CASE("Compiler emits OP_EQUAL and OP_NOT for comparison !=", "[compiler]") {
     Chunk chunk;
-    REQUIRE(compileSource("true != false", chunk));
+    REQUIRE(compileSource("true != false;", chunk));
     auto ops = opcodes(chunk);
     REQUIRE(ops[2] == OpCode::OP_EQUAL);
     REQUIRE(ops[3] == OpCode::OP_NOT);
@@ -115,14 +117,14 @@ TEST_CASE("Compiler emits OP_EQUAL and OP_NOT for comparison !=", "[compiler]") 
 
 TEST_CASE("Compiler emits OP_EQUAL for comparison ==", "[compiler]") {
     Chunk chunk;
-    REQUIRE(compileSource("10 == 10", chunk));
+    REQUIRE(compileSource("10 == 10;", chunk));
     auto ops = opcodes(chunk);
     REQUIRE(ops[2] == OpCode::OP_EQUAL);
 }
 
 TEST_CASE("Compiler emits OP_LESS and OP_NOT for comparison >=", "[compiler]") {
     Chunk chunk;
-    REQUIRE(compileSource("10 >= 5", chunk));
+    REQUIRE(compileSource("10 >= 5;", chunk));
     auto ops = opcodes(chunk);
     REQUIRE(ops[2] == OpCode::OP_LESS);
     REQUIRE(ops[3] == OpCode::OP_NOT);
@@ -130,14 +132,14 @@ TEST_CASE("Compiler emits OP_LESS and OP_NOT for comparison >=", "[compiler]") {
 
 TEST_CASE("Compiler emits OP_LESS for  comparison <", "[compiler]") {
     Chunk chunk;
-    REQUIRE(compileSource("5 < 10", chunk));
+    REQUIRE(compileSource("5 < 10;", chunk));
     auto ops = opcodes(chunk);
     REQUIRE(ops[2] == OpCode::OP_LESS);
 }
 
 TEST_CASE("Compiler emits OP_GREATER and OP_NOT for comparison <=", "[compiler]") {
     Chunk chunk;
-    REQUIRE(compileSource("5 <= 10", chunk));
+    REQUIRE(compileSource("5 <= 10;", chunk));
     auto ops = opcodes(chunk);
     REQUIRE(ops[2] == OpCode::OP_GREATER );
     REQUIRE(ops[3] == OpCode::OP_NOT);
@@ -146,22 +148,23 @@ TEST_CASE("Compiler emits OP_GREATER and OP_NOT for comparison <=", "[compiler]"
 // Operator precedence
 TEST_CASE("Multiplication binds tighter than addition", "[compiler]") {
     Chunk chunk;
-    REQUIRE(compileSource("1 + 2 * 3", chunk));
+    REQUIRE(compileSource("1 + 2 * 3;", chunk));
 
     auto ops = opcodes(chunk);
     // 1, 2, 3, OP_MULTIPLY, OP_ADD, OP_RETURN
-    REQUIRE(ops.size() == 6);
+    REQUIRE(ops.size() == 7);
     REQUIRE(ops[0] == OpCode::OP_CONSTANT); // 1
     REQUIRE(ops[1] == OpCode::OP_CONSTANT); // 2
     REQUIRE(ops[2] == OpCode::OP_CONSTANT); // 3
     REQUIRE(ops[3] == OpCode::OP_MULTIPLY);
     REQUIRE(ops[4] == OpCode::OP_ADD);
-    REQUIRE(ops[5] == OpCode::OP_RETURN);
+    REQUIRE(ops[5] == OpCode::OP_POP);
+    REQUIRE(ops[6] == OpCode::OP_RETURN);
 }
 
 TEST_CASE("Division binds tighter than subtraction", "[compiler]") {
     Chunk chunk;
-    REQUIRE(compileSource("10 - 6 / 3", chunk));
+    REQUIRE(compileSource("10 - 6 / 3;", chunk));
     auto ops = opcodes(chunk);
     REQUIRE(ops[3] == OpCode::OP_DIVIDE);
     REQUIRE(ops[4] == OpCode::OP_SUBTRACT);
@@ -170,44 +173,46 @@ TEST_CASE("Division binds tighter than subtraction", "[compiler]") {
 // Grouping (parentheses)
 TEST_CASE("Parentheses override default precedence", "[compiler]") {
     Chunk chunk;
-    REQUIRE(compileSource("(1 + 2) * 3", chunk));
+    REQUIRE(compileSource("(1 + 2) * 3;", chunk));
 
     auto ops = opcodes(chunk);
     // 1, 2, OP_ADD, 3, OP_MULTIPLY, OP_RETURN
-    REQUIRE(ops.size() == 6);
+    REQUIRE(ops.size() == 7);
     REQUIRE(ops[0] == OpCode::OP_CONSTANT); // 1
     REQUIRE(ops[1] == OpCode::OP_CONSTANT); // 2
     REQUIRE(ops[2] == OpCode::OP_ADD);
     REQUIRE(ops[3] == OpCode::OP_CONSTANT); // 3
     REQUIRE(ops[4] == OpCode::OP_MULTIPLY);
-    REQUIRE(ops[5] == OpCode::OP_RETURN);
+    REQUIRE(ops[5] == OpCode::OP_POP);
+    REQUIRE(ops[6] == OpCode::OP_RETURN);
 }
 
 TEST_CASE("Nested parentheses compile correctly", "[compiler]") {
     Chunk chunk;
-    REQUIRE(compileSource("((1 + 2))", chunk));
+    REQUIRE(compileSource("((1 + 2));", chunk));
     auto ops = opcodes(chunk);
     REQUIRE(ops[0] == OpCode::OP_CONSTANT);
     REQUIRE(ops[1] == OpCode::OP_CONSTANT);
     REQUIRE(ops[2] == OpCode::OP_ADD);
-    REQUIRE(ops[3] == OpCode::OP_RETURN);
+    REQUIRE(ops[3] == OpCode::OP_POP);
+    REQUIRE(ops[4] == OpCode::OP_RETURN);
 }
 
 // Complex expressions
 TEST_CASE("Compiler handles chained additions", "[compiler]") {
     Chunk chunk;
-    REQUIRE(compileSource("1 + 2 + 3", chunk));
+    REQUIRE(compileSource("1 + 2 + 3;", chunk));
     auto ops = opcodes(chunk);
     // Left-associative: (1+2)+3
     // 1, 2, ADD, 3, ADD, RETURN
-    REQUIRE(ops.size() == 6);
+    REQUIRE(ops.size() == 7);
     REQUIRE(ops[2] == OpCode::OP_ADD);
     REQUIRE(ops[4] == OpCode::OP_ADD);
 }
 
 TEST_CASE("Unary minus in expression: -1 + 2", "[compiler]") {
     Chunk chunk;
-    REQUIRE(compileSource("-1 + 2", chunk));
+    REQUIRE(compileSource("-1 + 2;", chunk));
     auto ops = opcodes(chunk);
     // CONST(1), NEGATE, CONST(2), ADD, RETURN
     REQUIRE(ops[0] == OpCode::OP_CONSTANT);
@@ -220,36 +225,36 @@ TEST_CASE("Unary minus in expression: -1 + 2", "[compiler]") {
 TEST_CASE("Compile fails on empty input", "[compiler]") {
     Chunk chunk;
     // Empty string -> advance gets EOF, parsePrecedence fails
-    REQUIRE_FALSE(compileSource("", chunk));
+    REQUIRE_FALSE(compileSource(";", chunk));
 }
 
 TEST_CASE("Compile fails on missing closing paren", "[compiler]") {
     Chunk chunk;
-    REQUIRE_FALSE(compileSource("(1 + 2", chunk));
+    REQUIRE_FALSE(compileSource("(1 + 2;", chunk));
 }
 
 TEST_CASE("Compile fails on unexpected token", "[compiler]") {
     Chunk chunk;
-    REQUIRE_FALSE(compileSource("+ 1", chunk));
+    REQUIRE_FALSE(compileSource("+ 1;", chunk));
 }
 
 TEST_CASE("Compile fails on trailing garbage", "[compiler]") {
     Chunk chunk;
-    REQUIRE_FALSE(compileSource("1 2", chunk));
+    REQUIRE_FALSE(compileSource("1 2;", chunk));
 }
 
 // Strings
 TEST_CASE("Concatenating two strings", "[compiler]") {
     Chunk chunk;
-    REQUIRE(compileSource("\"hello\" + \" world\"", chunk));
+    REQUIRE(compileSource("\"hello\" + \" world\";", chunk));
 }
 
 TEST_CASE("String comparisons", "[compiler]") {
     Chunk chunk;
-    REQUIRE(compileSource("\"hello\" == \"hello\"", chunk));
-    REQUIRE(compileSource("\"apple\" > \"bannana\"", chunk));
-    REQUIRE(compileSource("\"apple\" >= \"apple\"", chunk));
-    REQUIRE(compileSource("\"bannana\" < \"apple\"", chunk));
-    REQUIRE(compileSource("\"bannana\" <= \"bannana\"", chunk));
-    REQUIRE(compileSource("\"apple\" != \"bannana\"", chunk));
+    REQUIRE(compileSource("\"hello\" == \"hello\";", chunk));
+    REQUIRE(compileSource("\"apple\" > \"bannana\";", chunk));
+    REQUIRE(compileSource("\"apple\" >= \"apple\";", chunk));
+    REQUIRE(compileSource("\"bannana\" < \"apple\";", chunk));
+    REQUIRE(compileSource("\"bannana\" <= \"bannana\";", chunk));
+    REQUIRE(compileSource("\"apple\" != \"bannana\";", chunk));
 }

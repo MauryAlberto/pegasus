@@ -1,7 +1,7 @@
 #include "debug.hpp"
 
 namespace pegasus {
-    static std::size_t constantInstruction(const Chunk* chunk, const std::string& name, std::size_t offset) {
+    static std::size_t constantInstruction(const std::string& name, const Chunk* chunk, std::size_t offset) {
     std::uint8_t constantIndex{chunk->getRawByte(offset + 1)};
     Value constant{chunk->getConstant(constantIndex)};
 
@@ -12,7 +12,7 @@ namespace pegasus {
     return offset + 2;
     }
 
-    static std::size_t constantLongInstruction(const Chunk* chunk, const std::string& name, std::size_t offset) {
+    static std::size_t constantLongInstruction(const std::string& name, const Chunk* chunk, std::size_t offset) {
         std::size_t constantIndex{
             static_cast<std::size_t>(chunk->getRawByte(offset + 1)) |
             (static_cast<std::size_t>(chunk->getRawByte(offset + 2)) << 8) |
@@ -52,9 +52,9 @@ namespace pegasus {
         OpCode instruction{chunk->getInstruction(offset)};
         switch(instruction) {
             case OpCode::OP_CONSTANT:
-                return constantInstruction(chunk, "OP_CONSTANT", offset);
+                return constantInstruction("OP_CONSTANT", chunk, offset);
             case OpCode::OP_CONSTANT_LONG:
-                return constantLongInstruction(chunk, "OP_CONSTANT_LONG", offset);
+                return constantLongInstruction("OP_CONSTANT_LONG", chunk, offset);
             case OpCode::OP_ADD:
                 return simpleInstruction("OP_ADD", offset);
             case OpCode::OP_SUBTRACT:
@@ -79,6 +79,18 @@ namespace pegasus {
                 return simpleInstruction("OP_GREATER", offset);
             case OpCode::OP_LESS:
                 return simpleInstruction("OP_LESS", offset);
+            case OpCode::OP_PRINT:
+                return simpleInstruction("OP_PRINT", offset);
+            case OpCode::OP_POP:
+                return simpleInstruction("OP_POP", offset);
+            case OpCode::OP_DEFINE_GLOBAL:
+                return constantInstruction("OP_DEFINE_GLOBAL", chunk, offset);
+            case OpCode::OP_DEFINE_GLOBAL_LONG:
+                return constantInstruction("OP_DEFINE_GLOBAL_LONG", chunk, offset);
+            case OpCode::OP_GET_GLOBAL:
+                return constantInstruction("OP_GET_GLOBAL", chunk, offset);
+            case OpCode::OP_GET_GLOBAL_LONG:
+                return constantInstruction("OP_GET_GLOBAL_LONG", chunk, offset);
             case OpCode::OP_RETURN:
                 return simpleInstruction("OP_RETURN", offset);
             default:

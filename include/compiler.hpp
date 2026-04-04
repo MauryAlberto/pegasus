@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <array>
 #include <string>
+#include <cstddef>
 #include <string_view>
 #include "chunk.hpp"
 #include "scanner.hpp"
@@ -20,6 +21,8 @@ namespace pegasus {
             const Token& previousToken() const;
             const Token& currentToken() const;
             bool hadError() const;
+            bool isInPanicMode() const;
+            void resetPanicMode();
             void errorAt(const Token& token, std::string_view message);
             void errorAtCurrent(std::string_view message);
             void error(std::string_view message);
@@ -74,14 +77,25 @@ namespace pegasus {
             void emitByte(std::uint8_t byte, int line = -1);
             void emitReturn();
             void emitConstant(Value value);
-            void number();
             void parsePrecedence(Precedence precedence);
+            void declaration();
+            void varDeclaration();
+            std::size_t parseVariable(std::string_view errorMessage);
+            void defineVariable(std::size_t global);
+            void statement();
+            void synchronize();
+            bool match(TokenType type);
+            void printStatement();
+            void expressionStatement();
+            void number();
             void expression();
             void grouping();
             void unary();
             void binary();
             void literal();
             void string();
+            void variable();
+            void namedVariable(const Token& type);
 
             static const std::array<ParseRule, TOKEN_COUNT> rules;
     };

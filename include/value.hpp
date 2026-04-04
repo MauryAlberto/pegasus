@@ -9,8 +9,8 @@ namespace pegasus {
     using Value = std::variant<int, double, bool, std::string, std::string_view>;
 
     inline void printValue(const Value& value) {
-        std::visit([](auto v) {
-            using T = decltype(v);
+        std::visit([](auto&& v) {
+            using T = std::decay_t<decltype(v)>;
             if constexpr(std::is_same_v<T, int>) {
                 printf("%d", v);
             } else if constexpr(std::is_same_v<T, double>) {
@@ -28,8 +28,8 @@ namespace pegasus {
     }
 
     inline Value negateValue(const Value& value) {
-        return std::visit([](auto v) -> Value {
-            using T = decltype(v);
+        return std::visit([](auto&& v) -> Value {
+            using T = std::decay_t<decltype(v)>;
             if constexpr(std::is_arithmetic_v<T>) {
                 return Value{-v};
             } else {
@@ -39,8 +39,8 @@ namespace pegasus {
     }
     
     inline Value notValue(const Value& value) {
-        return std::visit([](auto v) -> Value {
-            using T = decltype(v);
+        return std::visit([](auto&& v) -> Value {
+            using T = std::decay_t<decltype(v)>;
             if constexpr(std::is_arithmetic_v<T>) {
                 return Value{!v};
             } else {
