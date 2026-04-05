@@ -51,7 +51,6 @@ namespace pegasus {
          /* EOF_ */         {nullptr, nullptr, Compiler::Precedence::PREC_NONE}
     }};
 
-
     void Parser::advance() {
         previous_ = current_;
         while(true) {
@@ -157,12 +156,17 @@ namespace pegasus {
             return;
         }
 
-        (this->*prefixRule)();
+        bool canAssign{precedence <= Precedence::PREC_ASSIGNMENT};
+        (this->*prefixRule)(canAssign);
 
         while(precedence <= getRule(parser_.currentToken().type_).precedence) {
             parser_.advance();
             ParseFn infixRule{getRule(parser_.previousToken().type_).infix};
-            (this->*infixRule)();
+            (this->*infixRule)(canAssign);
+        }
+
+        if(canAssign && match(TokenType::EQUAL)) {
+            parser_.error("invalid assignment target");
         }
     }
 
@@ -254,7 +258,12 @@ namespace pegasus {
         emitByte(OpCode::OP_POP);
     }
 
-    void Compiler::number() {
+    void Compiler::expression() {
+        parsePrecedence(Precedence::PREC_ASSIGNMENT);
+    }
+
+    void Compiler::number(bool canAssign) {
+        static_cast<void>(canAssign);
         std::string_view lexeme{parser_.previousToken().lexeme_};
         if(lexeme.find('.') != std::string_view::npos) {
             emitConstant(Value{std::stod(std::string{lexeme})});
@@ -263,16 +272,14 @@ namespace pegasus {
         }
     }
 
-    void Compiler::expression() {
-        parsePrecedence(Precedence::PREC_ASSIGNMENT);
-    }
-
-    void Compiler::grouping() {
+    void Compiler::grouping(bool canAssign) {
+        static_cast<void>(canAssign);
         expression();
         parser_.consume(TokenType::RIGHT_PAREN, "expect ')' after expression");
     }
     
-    void Compiler::unary() {
+    void Compiler::unary(bool canAssign) {
+        static_cast<void>(canAssign);
         TokenType operatorType{parser_.previousToken().type_};
         int line{parser_.previousLine()};
 
@@ -285,7 +292,8 @@ namespace pegasus {
         }
     }
 
-    void Compiler::binary() {
+    void Compiler::binary(bool canAssign) {
+        static_cast<void>(canAssign);
         TokenType operatorType{parser_.previousToken().type_};
         const ParseRule& rule{getRule(operatorType)};
         parsePrecedence(static_cast<Precedence>(static_cast<std::size_t>(rule.precedence) + 1));
@@ -306,7 +314,8 @@ namespace pegasus {
         }
     }
 
-    void Compiler::literal() {
+    void Compiler::literal(bool canAssign) {
+        static_cast<void>(canAssign);
         switch(parser_.previousToken().type_) {
             case TokenType::TRUE:   emitByte(OpCode::OP_TRUE);break;
             case TokenType::FALSE:  emitByte(OpCode::OP_FALSE);break;
@@ -315,25 +324,40 @@ namespace pegasus {
         }
     }
 
-    void Compiler::string() {
+    void Compiler::string(bool canAssign) {
+        static_cast<void>(canAssign);
         emitConstant(Value{std::string(parser_.previousToken().lexeme_)});
     }
     
-    void Compiler::variable() {
-        namedVariable(parser_.previousToken());
+    void Compiler::variable(bool canAssign) {
+        namedVariable(parser_.previousToken(), canAssign);
     }
 
-    void Compiler::namedVariable(const Token& name) {
+    void Compiler::namedVariable(const Token& name, bool canAssign) {
+        static_cast<void>(canAssign);
         std::size_t arg{chunk_->addConstant(Value{name.lexeme_})};
 
-        if(arg <= 255) {
-            emitByte(OpCode::OP_GET_GLOBAL);
-            emitByte(static_cast<std::uint8_t>(arg));
+        if(canAssign && match(TokenType::EQUAL)) {
+            expression();
+            if(arg <= 255) {
+                emitByte(OpCode::OP_SET_GLOBAL);
+                emitByte(static_cast<std::uint8_t>(arg));
+            } else {
+                emitByte(OpCode::OP_SET_GLOBAL_LONG);
+                emitByte(static_cast<std::uint8_t>(arg & 0xFF));
+                emitByte(static_cast<std::uint8_t>((arg >> 8) & 0xFF));
+                emitByte(static_cast<std::uint8_t>((arg >> 16) & 0xFF));
+            }
         } else {
-            emitByte(OpCode::OP_GET_GLOBAL_LONG);
-            emitByte(static_cast<std::uint8_t>(arg & 0xFF));
-            emitByte(static_cast<std::uint8_t>((arg >> 8) & 0xFF));
-            emitByte(static_cast<std::uint8_t>((arg >> 16) & 0xFF));
+            if(arg <= 255) {
+                emitByte(OpCode::OP_GET_GLOBAL);
+                emitByte(static_cast<std::uint8_t>(arg));
+            } else {
+                emitByte(OpCode::OP_GET_GLOBAL_LONG);
+                emitByte(static_cast<std::uint8_t>(arg & 0xFF));
+                emitByte(static_cast<std::uint8_t>((arg >> 8) & 0xFF));
+                emitByte(static_cast<std::uint8_t>((arg >> 16) & 0xFF));
+            }
         }
     }
 }

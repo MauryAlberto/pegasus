@@ -61,5 +61,8 @@ namespace pegasus {
             Value pop();
             Value peek(int distance);
             void binaryOp(BinaryOp op);
+            std::string_view extractVariableName(const Value& idenfitier);
+            std::size_t readConstantIndexLong();
+
     };
 }

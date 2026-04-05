@@ -24,10 +24,7 @@ namespace pegasus {
                         break;
                     }
                     case OpCode::OP_CONSTANT_LONG: {
-                        const std::size_t lowByte{static_cast<std::size_t>(*ip_++)};
-                        const std::size_t midByte{static_cast<std::size_t>(*ip_++)};
-                        const std::size_t highByte{static_cast<std::size_t>(*ip_++)};
-                        const std::size_t constantIndex{(highByte << 16) | (midByte << 8) | lowByte};
+                        const std::size_t constantIndex{readConstantIndexLong()};
                         Value constant{chunk_->getConstant(constantIndex)};
                         push(constant);
                         break;
@@ -36,16 +33,7 @@ namespace pegasus {
                     case OpCode::OP_DEFINE_GLOBAL: {
                         const std::size_t constantIndex{*ip_++};
                         Value identifier{chunk_->getConstant(constantIndex)};
-
-                        std::string_view variableName{std::visit([](auto&& v) -> std::string_view {
-                            using T = std::decay_t<decltype(v)>;
-                            if constexpr(std::is_same_v<T, std::string_view> || std::is_same_v<T, std::string>) {
-                                return v;
-                            } else {
-                                throw std::runtime_error("identifier must be a string");
-                            }
-                        }, identifier)};
-
+                        std::string_view variableName{extractVariableName(identifier)};
                         std::string_view internedName{pool_.intern(variableName)};
                         globalVariables_[internedName] = peek(0);
                         pop();
@@ -53,21 +41,9 @@ namespace pegasus {
                     }
 
                     case OpCode::OP_DEFINE_GLOBAL_LONG: {
-                        const std::size_t lowByte{static_cast<std::size_t>(*ip_++)};
-                        const std::size_t midByte{static_cast<std::size_t>(*ip_++)};
-                        const std::size_t highByte{static_cast<std::size_t>(*ip_++)};
-                        const std::size_t constantIndex{(highByte << 16) | (midByte << 8) | lowByte};
+                        const std::size_t constantIndex{readConstantIndexLong()};
                         Value identifier{chunk_->getConstant(constantIndex)};
-
-                        std::string_view variableName{std::visit([](auto&& v) -> std::string_view {
-                            using T = std::decay_t<decltype(v)>;
-                            if constexpr(std::is_same_v<T, std::string_view> || std::is_same_v<T, std::string>) {
-                                return v;
-                            } else {
-                                throw std::runtime_error("identifier must be a string");
-                            }
-                        }, identifier)};
-
+                        std::string_view variableName{extractVariableName(identifier)};
                         std::string_view internedName{pool_.intern(variableName)};
                         globalVariables_[internedName] = peek(0);
                         pop();
@@ -77,21 +53,12 @@ namespace pegasus {
                     case OpCode::OP_GET_GLOBAL: {
                         const std::size_t constantIndex{static_cast<std::size_t>(*ip_++)};
                         Value identifier{chunk_->getConstant(constantIndex)};
-
-                        std::string_view variableName{std::visit([](auto&& v) -> std::string_view {
-                            using T = std::decay_t<decltype(v)>;
-                            if constexpr(std::is_same_v<T, std::string_view> || std::is_same_v<T, std::string>) {
-                                return v;
-                            } else {
-                                throw std::runtime_error("identifier must be a string");
-                            }
-                        }, identifier)};
-
+                        std::string_view variableName{extractVariableName(identifier)};
                         std::string_view internedName{pool_.intern(variableName)};
 
                         auto it{globalVariables_.find(internedName)};
                         if(it == globalVariables_.end()) {
-                            throw std::runtime_error("undefined variable");
+                            throw std::runtime_error("undefined variable '" + std::string(internedName) + "'");
                         }
 
                         push(it->second);
@@ -99,29 +66,46 @@ namespace pegasus {
                     }
 
                     case OpCode::OP_GET_GLOBAL_LONG: {
-                        const std::size_t lowByte{static_cast<std::size_t>(*ip_++)};
-                        const std::size_t midByte{static_cast<std::size_t>(*ip_++)};
-                        const std::size_t highByte{static_cast<std::size_t>(*ip_++)};
-                        const std::size_t constantIndex{(highByte << 16) | (midByte << 8) | lowByte};
+                        const std::size_t constantIndex{readConstantIndexLong()};
                         Value identifier{chunk_->getConstant(constantIndex)};
-
-                        std::string_view variableName{std::visit([](auto&& v) -> std::string_view {
-                            using T = std::decay_t<decltype(v)>;
-                            if constexpr(std::is_same_v<T, std::string_view> || std::is_same_v<T, std::string>) {
-                                return v;
-                            } else {
-                                throw std::runtime_error("identifier must be a string");
-                            }
-                        }, identifier)};
-
+                        std::string_view variableName{extractVariableName(identifier)};
                         std::string_view internedName{pool_.intern(variableName)};
 
                         auto it{globalVariables_.find(internedName)};
                         if(it == globalVariables_.end()) {
-                            throw std::runtime_error("undefined variable");
+                            throw std::runtime_error("undefined variable '" + std::string(internedName) + "'");
                         }
 
                         push(it->second);
+                        break;
+                    }
+                    case OpCode::OP_SET_GLOBAL: {
+                        std::size_t constantIndex{static_cast<std::size_t>(*ip_++)};
+                        Value identifier{chunk_->getConstant(constantIndex)};
+                        std::string_view variableName{extractVariableName(identifier)};
+                        std::string_view internedName{pool_.intern(variableName)};
+
+                        auto it{globalVariables_.find(internedName)};
+                        if(it == globalVariables_.end()) {
+                            throw std::runtime_error("undefined variable '" + std::string(internedName) + "'");
+                        }
+
+                        it->second = peek(0);
+                        break;
+                    }
+
+                    case OpCode::OP_SET_GLOBAL_LONG: {
+                        const std::size_t constantIndex{readConstantIndexLong()};
+                        Value identifier{chunk_->getConstant(constantIndex)};
+                        std::string_view variableName{extractVariableName(identifier)};
+                        std::string_view internedName{pool_.intern(variableName)};
+
+                        auto it{globalVariables_.find(internedName)};
+                        if(it == globalVariables_.end()) {
+                            throw std::runtime_error("undefined variable '" + std::string(internedName) + "'");
+                        }
+
+                        it->second = peek(0);
                         break;
                     }
 
@@ -132,7 +116,7 @@ namespace pegasus {
                     case OpCode::OP_NEGATE:     {push(negateValue(pop()));break;}
                     case OpCode::OP_TRUE:       {push(Value{true});break;}
                     case OpCode::OP_FALSE:      {push(Value{false});break;}
-                    case OpCode::OP_NIL:        {push(Value{0});break;}
+                    case OpCode::OP_NIL:        {push(Value{std::monostate{}});break;}
                     case OpCode::OP_NOT:        {push(notValue(pop()));break;}
                     case OpCode::OP_EQUAL:      {binaryOp(BinaryOp::EQUAL);break;}
                     case OpCode::OP_GREATER:    {binaryOp(BinaryOp::GREATER);break;}
@@ -159,7 +143,8 @@ namespace pegasus {
         return run();
     }
 
-    void VM::push(Value value) {
+    void VM::push(Value value)
+    {
         if(stackTop_ >= stack_.data() + STACK_SIZE) {
             throw std::runtime_error("stack overflow");
         }
@@ -226,5 +211,23 @@ namespace pegasus {
             }
 
         }, a, b);
+    }
+
+    std::string_view VM::extractVariableName(const Value &identifier) {
+        return std::visit([](auto&& v) -> std::string_view {
+            using T = std::decay_t<decltype(v)>;
+            if constexpr(std::is_same_v<T, std::string_view> || std::is_same_v<T, std::string>) {
+                return v;
+            } else {
+                throw std::runtime_error("identifier must be a string");
+            }
+        }, identifier);
+    }
+
+    std::size_t VM::readConstantIndexLong() {
+        const std::size_t lowByte{static_cast<std::size_t>(*ip_++)};
+        const std::size_t midByte{static_cast<std::size_t>(*ip_++)};
+        const std::size_t highByte{static_cast<std::size_t>(*ip_++)};
+        return (highByte << 16) | (midByte << 8) | lowByte;
     }
 }

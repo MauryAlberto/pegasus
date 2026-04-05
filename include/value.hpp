@@ -6,7 +6,7 @@
 #include <string_view>
 
 namespace pegasus {
-    using Value = std::variant<int, double, bool, std::string, std::string_view>;
+    using Value = std::variant<int, double, bool, std::string, std::string_view, std::monostate>;
 
     inline void printValue(const Value& value) {
         std::visit([](auto&& v) {
@@ -21,6 +21,8 @@ namespace pegasus {
                 printf("%.*s", static_cast<int>(v.size()), v.data());
             } else if constexpr(std::is_same_v<T, std::string>){
                 printf("%s", v.c_str());
+            } else if constexpr(std::is_same_v<T, std::monostate>) {
+                printf("nil");
             } else {
                 throw std::runtime_error("unknown value type");
             }

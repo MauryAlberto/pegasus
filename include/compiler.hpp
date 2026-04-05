@@ -62,7 +62,7 @@ namespace pegasus {
 
             static constexpr int TOKEN_COUNT = static_cast<int>(TokenType::TOKEN_SIZE);
             static_assert(TOKEN_COUNT == 40, "token count mismatch");
-            using ParseFn = void(Compiler::*)();
+            using ParseFn = void(Compiler::*)(bool canAssign);
 
             struct ParseRule {
                 ParseFn prefix;
@@ -87,15 +87,15 @@ namespace pegasus {
             bool match(TokenType type);
             void printStatement();
             void expressionStatement();
-            void number();
             void expression();
-            void grouping();
-            void unary();
-            void binary();
-            void literal();
-            void string();
-            void variable();
-            void namedVariable(const Token& type);
+            void number(bool canAssign);
+            void grouping(bool canAssign);
+            void unary(bool canAssign);
+            void binary(bool canAssign);
+            void literal(bool canAssign);
+            void string(bool canAssign);
+            void variable(bool canAssign);
+            void namedVariable(const Token& type, bool canAssign);
 
             static const std::array<ParseRule, TOKEN_COUNT> rules;
     };
