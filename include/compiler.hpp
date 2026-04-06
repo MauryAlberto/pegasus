@@ -46,7 +46,7 @@ namespace pegasus {
         private:
             Parser& parser_;
             Chunk* chunk_{nullptr};
-            static constexpr int DEBUG_PRINT_CODE = false;
+            static constexpr int DEBUG_PRINT_CODE = true;
 
             enum class Precedence {
                 PREC_NONE,

@@ -1,6 +1,23 @@
 #include "debug.hpp"
 
 namespace pegasus {
+    static std::size_t byteInstruction(const std::string& name, const Chunk* chunk, std::size_t offset) {
+        std::uint8_t slot{chunk->getRawByte(offset + 1)};
+        printf("%-16s %4d\n", name.c_str(), slot);
+        return offset + 2;
+    }
+
+    static std::size_t byteLongInstruction(const std::string& name, const Chunk* chunk, std::size_t offset) {
+        std::size_t slot{
+            static_cast<std::size_t>(chunk->getRawByte(offset + 1)) |
+            (static_cast<std::size_t>(chunk->getRawByte(offset + 2)) << 8) |
+            (static_cast<std::size_t>(chunk->getRawByte(offset + 3)) << 16)
+        };
+        printf("%-16s %4zu\n", name.c_str(), slot);
+        return offset + 4;
+    }
+
+
     static std::size_t constantInstruction(const std::string& name, const Chunk* chunk, std::size_t offset) {
     std::uint8_t constantIndex{chunk->getRawByte(offset + 1)};
     Value constant{chunk->getConstant(constantIndex)};
@@ -91,6 +108,18 @@ namespace pegasus {
                 return constantInstruction("OP_GET_GLOBAL", chunk, offset);
             case OpCode::OP_GET_GLOBAL_LONG:
                 return constantInstruction("OP_GET_GLOBAL_LONG", chunk, offset);
+            case OpCode::OP_SET_GLOBAL:
+                return constantInstruction("OP_SET_GLOBAL", chunk, offset);
+            case OpCode::OP_SET_GLOBAL_LONG:
+                return constantLongInstruction("OP_SET_GLOBAL_LONG", chunk, offset);
+            case OpCode::OP_GET_LOCAL:
+                return byteInstruction("OP_GET_LOCAL", chunk, offset);
+            case OpCode::OP_GET_LOCAL_LONG:
+                return byteLongInstruction("OP_GET_LOCAL_LONG", chunk, offset);
+            case OpCode::OP_SET_LOCAL:
+                return byteInstruction("OP_SET_LOCAL", chunk, offset);
+            case OpCode::OP_SET_LOCAL_LONG:
+                return byteLongInstruction("OP_SET_LOCAL_LONG", chunk, offset);
             case OpCode::OP_RETURN:
                 return simpleInstruction("OP_RETURN", offset);
             default:
