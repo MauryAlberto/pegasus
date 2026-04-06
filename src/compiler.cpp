@@ -195,10 +195,21 @@ namespace pegasus {
 
     std::size_t Compiler::parseVariable(std::string_view errorMessage) {
         parser_.consume(TokenType::IDENTIFIER, errorMessage);
+
+        if(scopeDepth_ > 0) {
+            declareVariable();
+            return 0;
+        }
+
         return chunk_->addConstant(Value{parser_.previousToken().lexeme_});
     }
 
     void Compiler::defineVariable(const std::size_t global) {
+        if(scopeDepth_ > 0) {
+            markInitialized();
+            return;
+        }
+
         if(global <= 255) {
             emitByte(OpCode::OP_DEFINE_GLOBAL);
             emitByte(static_cast<std::uint8_t>(global));
@@ -213,6 +224,10 @@ namespace pegasus {
     void Compiler::statement() {
         if(match(TokenType::PRINT)) {
             printStatement();
+        } else if(match(TokenType::LEFT_BRACE)) {
+            beginScope();
+            block();
+            endScope();
         } else {
             expressionStatement();
         }
@@ -335,29 +350,120 @@ namespace pegasus {
 
     void Compiler::namedVariable(const Token& name, bool canAssign) {
         static_cast<void>(canAssign);
-        std::size_t arg{chunk_->addConstant(Value{name.lexeme_})};
+        int arg{resolveLocal(name)};
+        bool isLocal{arg != -1};
 
-        if(canAssign && match(TokenType::EQUAL)) {
-            expression();
-            if(arg <= 255) {
-                emitByte(OpCode::OP_SET_GLOBAL);
-                emitByte(static_cast<std::uint8_t>(arg));
+        if(!isLocal) {
+            std::size_t globalArg{chunk_->addConstant(Value{name.lexeme_})};
+
+            if(canAssign && match(TokenType::EQUAL)) {
+                expression();
+                if(globalArg <= 255) {
+                    emitByte(OpCode::OP_SET_GLOBAL);
+                    emitByte(static_cast<std::uint8_t>(globalArg));
+                } else {
+                    emitByte(OpCode::OP_SET_GLOBAL_LONG);
+                    emitByte(static_cast<std::uint8_t>(globalArg & 0xFF));
+                    emitByte(static_cast<std::uint8_t>((globalArg >> 8) & 0xFF));
+                    emitByte(static_cast<std::uint8_t>((globalArg >> 16) & 0xFF));
+                }
             } else {
-                emitByte(OpCode::OP_SET_GLOBAL_LONG);
-                emitByte(static_cast<std::uint8_t>(arg & 0xFF));
-                emitByte(static_cast<std::uint8_t>((arg >> 8) & 0xFF));
-                emitByte(static_cast<std::uint8_t>((arg >> 16) & 0xFF));
+                if(globalArg <= 255) {
+                    emitByte(OpCode::OP_GET_GLOBAL);
+                    emitByte(static_cast<std::uint8_t>(globalArg));
+                } else {
+                    emitByte(OpCode::OP_GET_GLOBAL_LONG);
+                    emitByte(static_cast<std::uint8_t>(globalArg & 0xFF));
+                    emitByte(static_cast<std::uint8_t>((globalArg >> 8) & 0xFF));
+                    emitByte(static_cast<std::uint8_t>((globalArg >> 16) & 0xFF));
+                }
             }
         } else {
-            if(arg <= 255) {
-                emitByte(OpCode::OP_GET_GLOBAL);
-                emitByte(static_cast<std::uint8_t>(arg));
+            if(canAssign && match(TokenType::EQUAL)) {
+                expression();
+                if(arg <= 255) {
+                    emitByte(OpCode::OP_SET_LOCAL);
+                    emitByte(static_cast<std::uint8_t>(arg));
+                } else {
+                    emitByte(OpCode::OP_SET_LOCAL_LONG);
+                    emitByte(static_cast<std::uint8_t>(arg & 0xFF));
+                    emitByte(static_cast<std::uint8_t>((arg >> 8) & 0xFF));
+                    emitByte(static_cast<std::uint8_t>((arg >> 16) & 0xFF));
+                }
             } else {
-                emitByte(OpCode::OP_GET_GLOBAL_LONG);
-                emitByte(static_cast<std::uint8_t>(arg & 0xFF));
-                emitByte(static_cast<std::uint8_t>((arg >> 8) & 0xFF));
-                emitByte(static_cast<std::uint8_t>((arg >> 16) & 0xFF));
+                if(arg <= 255) {
+                    emitByte(OpCode::OP_GET_LOCAL);
+                    emitByte(static_cast<std::uint8_t>(arg));
+                } else {
+                    emitByte(OpCode::OP_GET_LOCAL_LONG);
+                    emitByte(static_cast<std::uint8_t>(arg & 0xFF));
+                    emitByte(static_cast<std::uint8_t>((arg >> 8) & 0xFF));
+                    emitByte(static_cast<std::uint8_t>((arg >> 16) & 0xFF));
+                }
             }
         }
+
+    }
+    void Compiler::beginScope() {
+        scopeDepth_++;
+    }
+    
+    void Compiler::endScope() {
+        scopeDepth_--;
+        while(localCount_ > 0 && locals_[localCount_ - 1].depth > scopeDepth_) {
+            emitByte(OpCode::OP_POP);
+            localCount_--;
+        }
+    }
+    
+    void Compiler::block() {
+        while(parser_.currentToken().type_ != TokenType::RIGHT_BRACE &&
+              parser_.currentToken().type_ != TokenType::EOF_) {
+                declaration();
+              }
+        parser_.consume(TokenType::RIGHT_BRACE, "expected '}' after block");
+    }
+    void Compiler::declareVariable() {
+        std::string_view name{parser_.previousToken().lexeme_};
+
+        for(int i{static_cast<int>(localCount_ - 1)}; i >= 0; i--) {
+            std::size_t idx{static_cast<std::size_t>(i)};
+            if(locals_[idx].depth != UNINITIALIZED && locals_[idx].depth < scopeDepth_) {
+                break;
+            }
+
+            if(locals_[idx].name == name) {
+                parser_.error("already a variable with this name in this scope");
+            }
+        }
+
+        addLocal(name);
+    }
+    
+    void Compiler::addLocal(std::string_view name) {
+        if(localCount_ >= LOCAL_STACK_SIZE) {
+            parser_.error("too many local variables");
+        }
+
+        locals_[localCount_] = Local{name, UNINITIALIZED};
+        localCount_++;
+    }
+    
+    void Compiler::markInitialized() {
+        locals_[localCount_ - 1].depth = scopeDepth_;
+    }
+    
+    int Compiler::resolveLocal(const Token &name) {
+        for(int i{static_cast<int>(localCount_ - 1)}; i >= 0; i--) {
+            if(locals_[static_cast<std::size_t>(i)].name == name.lexeme_) {
+                if(locals_[static_cast<std::size_t>(i)].depth == UNINITIALIZED) {
+                    parser_.error("can't read local variable in its own initializer");
+                }
+
+                return i;
+            }
+        }
+
+        return -1;
     }
 }

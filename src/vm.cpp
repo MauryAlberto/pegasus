@@ -80,7 +80,7 @@ namespace pegasus {
                         break;
                     }
                     case OpCode::OP_SET_GLOBAL: {
-                        std::size_t constantIndex{static_cast<std::size_t>(*ip_++)};
+                        const std::size_t constantIndex{static_cast<std::size_t>(*ip_++)};
                         Value identifier{chunk_->getConstant(constantIndex)};
                         std::string_view variableName{extractVariableName(identifier)};
                         std::string_view internedName{pool_.intern(variableName)};
@@ -106,6 +106,30 @@ namespace pegasus {
                         }
 
                         it->second = peek(0);
+                        break;
+                    }
+
+                    case OpCode::OP_GET_LOCAL: {
+                        const std::uint8_t slot{*ip_++};
+                        push(stack_[slot]);
+                        break;
+                    }
+
+                    case OpCode::OP_GET_LOCAL_LONG: {
+                        const std::size_t slot{readConstantIndexLong()};
+                        push(stack_[slot]);
+                        break;
+                    }
+
+                    case OpCode::OP_SET_LOCAL: {
+                        const std::uint8_t slot{*ip_++};
+                        stack_[slot] = peek(0);
+                        break;
+                    }
+
+                    case OpCode::OP_SET_LOCAL_LONG: {
+                        const std::size_t slot{readConstantIndexLong()};
+                        stack_[slot] = peek(0);
                         break;
                     }
 

@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <array>
 #include <string>
+#include <limits>
 #include <cstddef>
 #include <string_view>
 #include "chunk.hpp"
@@ -35,6 +36,7 @@ namespace pegasus {
             bool panicMode_{false};
     };
 
+    inline constexpr int LOCAL_STACK_SIZE = 256;
     class Compiler {
         public:
             Compiler() = delete;
@@ -61,7 +63,6 @@ namespace pegasus {
             };
 
             static constexpr int TOKEN_COUNT = static_cast<int>(TokenType::TOKEN_SIZE);
-            static_assert(TOKEN_COUNT == 40, "token count mismatch");
             using ParseFn = void(Compiler::*)(bool canAssign);
 
             struct ParseRule {
@@ -69,6 +70,16 @@ namespace pegasus {
                 ParseFn infix;
                 Precedence precedence;
              };
+
+             static constexpr std::size_t UNINITIALIZED{std::numeric_limits<std::size_t>::max()};
+             struct Local {
+                std::string_view name;
+                std::size_t depth;
+             };
+
+             std::array<Local, LOCAL_STACK_SIZE> locals_{};
+             std::size_t localCount_{0};
+             std::size_t scopeDepth_{0};
 
             const ParseRule& getRule(TokenType type);
             Chunk* currentChunk();
@@ -96,6 +107,13 @@ namespace pegasus {
             void string(bool canAssign);
             void variable(bool canAssign);
             void namedVariable(const Token& type, bool canAssign);
+            void beginScope();
+            void endScope();
+            void block();
+            void declareVariable();
+            void addLocal(std::string_view name);
+            void markInitialized();
+            int resolveLocal(const Token& name);
 
             static const std::array<ParseRule, TOKEN_COUNT> rules;
     };
