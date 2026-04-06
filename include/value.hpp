@@ -50,4 +50,21 @@ namespace pegasus {
             }
         }, value);
     }
+
+    inline bool isFalsey(const Value& value) {
+        return std::visit([](auto&& v) -> bool {
+            using T = std::decay_t<decltype(v)>;
+            if constexpr(std::is_same_v<T, std::monostate>) {
+                return true;
+            } else if constexpr(std::is_same_v<T, bool>) {
+                return !v;
+            } else if constexpr(std::is_arithmetic_v<T>) {
+                return v == 0;
+            } else if constexpr(std::is_same_v<T, std::string_view> || std::is_same_v<T, std::string>) {
+                return v.empty();
+            } else {
+                throw std::runtime_error("unhandled type in isFalsey");
+            }
+        }, value);
+    }
 }

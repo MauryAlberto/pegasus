@@ -145,7 +145,25 @@ namespace pegasus {
     
     void Compiler::emitConstant(Value value) {
         currentChunk()->writeConstant(value, parser_.previousLine());
-    }   
+    }
+
+    std::size_t Compiler::emitJump(OpCode op) {
+        emitByte(op);
+        emitByte(0xFF);
+        emitByte(0xFF);
+        return currentChunk()->getCodeSize() - 2;
+    }
+
+    void Compiler::patchJump(std::size_t offset) {
+        std::size_t jump{currentChunk()->getCodeSize() - offset - 2};
+
+        if(jump > std::numeric_limits<std::uint16_t>::max()) {
+            parser_.error("too much code to jump over");
+        }
+
+        currentChunk()->setByte(offset, (jump & 0xFF));
+        currentChunk()->setByte(offset + 1, ((jump >> 8)) & 0xFF);
+    }
 
     void Compiler::parsePrecedence(Precedence precedence) {
         parser_.advance();
@@ -224,6 +242,8 @@ namespace pegasus {
     void Compiler::statement() {
         if(match(TokenType::PRINT)) {
             printStatement();
+        } else if(match(TokenType::IF)) {
+            ifStatement();
         } else if(match(TokenType::LEFT_BRACE)) {
             beginScope();
             block();
@@ -265,6 +285,17 @@ namespace pegasus {
         expression();
         parser_.consume(TokenType::SEMICOLON, "expected ';' after value");
         emitByte(OpCode::OP_PRINT);
+    }
+
+    void Compiler::ifStatement() {
+        parser_.consume(TokenType::LEFT_PAREN, "expected '(' after if");
+        expression();
+        parser_.consume(TokenType::RIGHT_PAREN, "expected ')' after condition");
+
+        std::size_t thenJump{emitJump(OpCode::OP_JUMP_IF_FALSE)};
+        statement();
+
+        patchJump(thenJump);
     }
 
     void Compiler::expressionStatement() {

@@ -34,6 +34,8 @@ namespace pegasus {
         OP_GET_LOCAL_LONG,
         OP_SET_LOCAL,
         OP_SET_LOCAL_LONG,
+        OP_JUMP,
+        OP_JUMP_IF_FALSE,
         OP_RETURN
     };
 
@@ -55,6 +57,7 @@ namespace pegasus {
             OpCode getInstruction(std::size_t offset) const;
             std::uint8_t getRawByte(std::size_t offset) const;
             int getLine(std::size_t offset) const;
+            void setByte(std::size_t offset, std::uint8_t byte);
             void free();
 
         private:

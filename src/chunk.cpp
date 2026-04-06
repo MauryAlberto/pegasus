@@ -74,6 +74,10 @@ namespace pegasus {
         return 0;
     }
 
+    void Chunk::setByte(std::size_t offset, std::uint8_t byte) {
+        code_[offset] = byte;
+    }
+
     const uint8_t* Chunk::getCode() const {
         return code_.data();
     }

@@ -88,6 +88,8 @@ namespace pegasus {
             void emitByte(std::uint8_t byte, int line = -1);
             void emitReturn();
             void emitConstant(Value value);
+            std::size_t emitJump(OpCode op);
+            void patchJump(std::size_t offset);
             void parsePrecedence(Precedence precedence);
             void declaration();
             void varDeclaration();
@@ -97,6 +99,7 @@ namespace pegasus {
             void synchronize();
             bool match(TokenType type);
             void printStatement();
+            void ifStatement();
             void expressionStatement();
             void expression();
             void number(bool canAssign);
