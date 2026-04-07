@@ -292,10 +292,16 @@ namespace pegasus {
         expression();
         parser_.consume(TokenType::RIGHT_PAREN, "expected ')' after condition");
 
-        std::size_t thenJump{emitJump(OpCode::OP_JUMP_IF_FALSE)};
-        statement();
+        std::size_t jumpThenBlock{emitJump(OpCode::OP_JUMP_IF_FALSE)};
+        emitByte(OpCode::OP_POP);   // if not false then pop value off the stack from expression
+        statement();                // execute the statement(s)
+        std::size_t jumpElseBlock(emitJump(OpCode::OP_JUMP)); // jump past the else block
+        
+        patchJump(jumpThenBlock); // now that we have the code size for the "then" block we can figure out how much to jump by
 
-        patchJump(thenJump);
+        emitByte(OpCode::OP_POP);   // if false we jump here and pop value off the stack from expression
+        if(match(TokenType::ELSE)) statement(); // execute statment(s)
+        patchJump(jumpElseBlock); // now that we have the code size for the "else" block we can figure out how much to jump by
     }
 
     void Compiler::expressionStatement() {

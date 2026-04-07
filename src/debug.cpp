@@ -1,6 +1,16 @@
 #include "debug.hpp"
 
 namespace pegasus {
+    static std::size_t jumpInstruction(const std::string& name, int sign, const Chunk* chunk, std::size_t offset) {
+        std::uint8_t lsb{chunk->getRawByte(offset + 1)};
+        std::uint8_t msb{chunk->getRawByte(offset + 2)};
+        std::uint16_t jump{static_cast<std::uint16_t>((msb << 8) | lsb)};
+
+        std::size_t target{(sign == 1) ? offset + 3 + jump : offset + 3 - jump};
+        printf("%-16s %4zu -> %zu\n", name.c_str(), offset, target);
+        return offset + 3;
+    }
+
     static std::size_t byteInstruction(const std::string& name, const Chunk* chunk, std::size_t offset) {
         std::uint8_t slot{chunk->getRawByte(offset + 1)};
         printf("%-16s %4d\n", name.c_str(), slot);
@@ -120,6 +130,10 @@ namespace pegasus {
                 return byteInstruction("OP_SET_LOCAL", chunk, offset);
             case OpCode::OP_SET_LOCAL_LONG:
                 return byteLongInstruction("OP_SET_LOCAL_LONG", chunk, offset);
+            case OpCode::OP_JUMP:
+                return jumpInstruction("OP_JUMP", 1, chunk, offset);
+            case OpCode::OP_JUMP_IF_FALSE:
+                return jumpInstruction("OP_JUMP_IF_FALSE", 1, chunk, offset);
             case OpCode::OP_RETURN:
                 return simpleInstruction("OP_RETURN", offset);
             default:

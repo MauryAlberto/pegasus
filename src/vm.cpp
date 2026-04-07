@@ -133,6 +133,14 @@ namespace pegasus {
                         break;
                     }
 
+                    case OpCode::OP_JUMP: {
+                        const std::uint8_t lsb{*ip_++};
+                        const std::uint8_t msb{*ip_++};
+                        const std::uint16_t offset{static_cast<std::uint16_t>((msb << 8) | lsb)};
+                        ip_ += offset;
+                        break;
+                    }
+                    
                     case OpCode::OP_JUMP_IF_FALSE: {
                         const std::uint8_t lsb{*ip_++};
                         const std::uint8_t msb{*ip_++};
@@ -140,7 +148,7 @@ namespace pegasus {
                         
                         if(isFalsey(peek(0))) ip_ += offset;
                         break;
-                    }
+                    }                    
 
                     case OpCode::OP_ADD:        {binaryOp(BinaryOp::ADD);break;}
                     case OpCode::OP_SUBTRACT:   {binaryOp(BinaryOp::SUBTRACT);break;}
