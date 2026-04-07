@@ -100,6 +100,8 @@ namespace pegasus {
             bool match(TokenType type);
             void printStatement();
             void ifStatement();
+            void whileStatement();
+            void emitLoop(std::size_t loopStart);
             void expressionStatement();
             void expression();
             void number(bool canAssign);
@@ -110,6 +112,8 @@ namespace pegasus {
             void string(bool canAssign);
             void variable(bool canAssign);
             void namedVariable(const Token& type, bool canAssign);
+            void and_(bool canAssign);
+            void or_(bool canAssign);
             void beginScope();
             void endScope();
             void block();

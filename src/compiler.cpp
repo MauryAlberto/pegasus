@@ -34,8 +34,8 @@ namespace pegasus {
         /* FALSE */         {&Compiler::literal, nullptr, Compiler::Precedence::PREC_NONE},
         /* IF */            {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
         /* ELSE */          {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
-        /* AND */           {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
-        /* OR */            {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
+        /* AND */           {nullptr, &Compiler::and_, Compiler::Precedence::PREC_NONE},
+        /* OR */            {nullptr, &Compiler::or_, Compiler::Precedence::PREC_NONE},
         /* FOR */           {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
         /* WHILE */         {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
         /* FUN */           {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
@@ -154,15 +154,15 @@ namespace pegasus {
         return currentChunk()->getCodeSize() - 2;
     }
 
-    void Compiler::patchJump(std::size_t offset) {
-        std::size_t jump{currentChunk()->getCodeSize() - offset - 2};
+    void Compiler::patchJump(std::size_t jumpOperandIndex) {
+        std::size_t jump{currentChunk()->getCodeSize() - jumpOperandIndex - 2};
 
         if(jump > std::numeric_limits<std::uint16_t>::max()) {
             parser_.error("too much code to jump over");
         }
 
-        currentChunk()->setByte(offset, (jump & 0xFF));
-        currentChunk()->setByte(offset + 1, ((jump >> 8)) & 0xFF);
+        currentChunk()->setByte(jumpOperandIndex, (jump & 0xFF));
+        currentChunk()->setByte(jumpOperandIndex + 1, ((jump >> 8)) & 0xFF);
     }
 
     void Compiler::parsePrecedence(Precedence precedence) {
@@ -244,6 +244,8 @@ namespace pegasus {
             printStatement();
         } else if(match(TokenType::IF)) {
             ifStatement();
+        } else if(match(TokenType::WHILE)) {
+            whileStatement();
         } else if(match(TokenType::LEFT_BRACE)) {
             beginScope();
             block();
@@ -302,6 +304,33 @@ namespace pegasus {
         emitByte(OpCode::OP_POP);   // if false we jump here and pop value off the stack from expression
         if(match(TokenType::ELSE)) statement(); // execute statment(s)
         patchJump(jumpElseBlock); // now that we have the code size for the "else" block we can figure out how much to jump by
+    }
+
+    void Compiler::whileStatement() {
+        std::size_t loopStart{currentChunk()->getCodeSize()};
+        parser_.consume(TokenType::LEFT_PAREN, "expect '(' after 'while'");
+        expression();
+        parser_.consume(TokenType::RIGHT_PAREN, "expect ')' after condition");
+
+        std::size_t exitJump{emitJump(OpCode::OP_JUMP_IF_FALSE)};
+        emitByte(OpCode::OP_POP);
+        statement();
+        emitLoop(loopStart);
+
+        patchJump(exitJump);
+        emitByte(OpCode::OP_POP);
+    }
+
+    void Compiler::emitLoop(std::size_t loopStart) {
+        emitByte(OpCode::OP_LOOP);
+
+        std::size_t offset{currentChunk()->getCodeSize() - loopStart + 2};
+        if(offset > std::numeric_limits<std::uint16_t>::max()) {
+            parser_.error("loop body too large");
+        }
+
+        emitByte(static_cast<std::uint8_t>(offset & 0xFF));
+        emitByte(static_cast<std::uint8_t>((offset >> 8) & 0xFF));
     }
 
     void Compiler::expressionStatement() {
@@ -441,10 +470,31 @@ namespace pegasus {
         }
 
     }
-    void Compiler::beginScope() {
+    void Compiler::and_(bool canAssign) {
+        static_cast<void>(canAssign);
+        std::size_t endJump{emitJump(OpCode::OP_JUMP_IF_FALSE)};
+
+        emitByte(OpCode::OP_POP);
+        parsePrecedence(Precedence::PREC_AND);
+        patchJump(endJump);
+    }
+
+    void Compiler::or_(bool canAssign) {
+        static_cast<void>(canAssign);
+        std::size_t elseJump{emitJump(OpCode::OP_JUMP_IF_FALSE)};
+        std::size_t endJump{emitJump(OpCode::OP_JUMP)};
+        
+        patchJump(elseJump);
+        emitJump(OpCode::OP_POP);
+        parsePrecedence(Precedence::PREC_OR);
+        patchJump(endJump);
+    }
+
+    void Compiler::beginScope()
+    {
         scopeDepth_++;
     }
-    
+
     void Compiler::endScope() {
         scopeDepth_--;
         while(localCount_ > 0 && locals_[localCount_ - 1].depth > scopeDepth_) {
@@ -460,6 +510,7 @@ namespace pegasus {
               }
         parser_.consume(TokenType::RIGHT_BRACE, "expected '}' after block");
     }
+
     void Compiler::declareVariable() {
         std::string_view name{parser_.previousToken().lexeme_};
 
