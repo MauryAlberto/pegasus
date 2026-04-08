@@ -101,6 +101,7 @@ namespace pegasus {
             void printStatement();
             void ifStatement();
             void whileStatement();
+            void forStatement();
             void emitLoop(std::size_t loopStart);
             void expressionStatement();
             void expression();

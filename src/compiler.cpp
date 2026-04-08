@@ -246,6 +246,8 @@ namespace pegasus {
             ifStatement();
         } else if(match(TokenType::WHILE)) {
             whileStatement();
+        } else if(match(TokenType::FOR)) {
+            forStatement();
         } else if(match(TokenType::LEFT_BRACE)) {
             beginScope();
             block();
@@ -319,6 +321,50 @@ namespace pegasus {
 
         patchJump(exitJump);
         emitByte(OpCode::OP_POP);
+    }
+
+    void Compiler::forStatement() {
+        beginScope();
+        parser_.consume(TokenType::LEFT_PAREN, "expect '(' after 'for'");
+        if(match(TokenType::SEMICOLON)) {
+            // no initializer
+        } else if(match(TokenType::VAR)) {
+            varDeclaration();
+        } else {
+            expressionStatement();
+        }
+
+        std::size_t loopStart{currentChunk()->getCodeSize()};
+        std::size_t exitJump{0};
+        if(!match(TokenType::SEMICOLON)) {
+            expression();
+            parser_.consume(TokenType::SEMICOLON, "expect ';' after loop condition");
+
+            exitJump = emitJump(OpCode::OP_JUMP_IF_FALSE);
+            emitByte(OpCode::OP_POP);
+        }
+
+        if(!match(TokenType::RIGHT_PAREN)) {
+            std::size_t bodyJump{emitJump(OpCode::OP_JUMP)};
+            std::size_t incrementStart{currentChunk()->getCodeSize()};
+            expression();
+            emitByte(OpCode::OP_POP);
+
+            parser_.consume(TokenType::RIGHT_PAREN, "expect ')' after for clauses");
+            emitLoop(loopStart);
+            loopStart = incrementStart;
+            patchJump(bodyJump);
+        }
+
+        statement();
+        emitLoop(loopStart);
+
+        if(exitJump != 0) {
+            patchJump(exitJump);
+            emitByte(OpCode::OP_POP);
+        }
+
+        endScope();
     }
 
     void Compiler::emitLoop(std::size_t loopStart) {

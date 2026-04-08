@@ -32,8 +32,7 @@ namespace pegasus {
     std::uint8_t constantIndex{chunk->getRawByte(offset + 1)};
     Value constant{chunk->getConstant(constantIndex)};
 
-    printf("%-16s ", name.c_str());
-
+    printf("%-19s ", name.c_str());
     printValue(constant);
     printf("\n");
     return offset + 2;
