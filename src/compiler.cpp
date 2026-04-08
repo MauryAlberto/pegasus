@@ -109,23 +109,24 @@ namespace pegasus {
         errorAt(previous_, message);
     }
 
-    bool Compiler::compile() {
+    std::optional<ObjFunction> Compiler::compile() {
+        functionType_ = FunctionType::TYPE_SCRIPT;
         parser_.advance();
         while(!match(TokenType::EOF_)) declaration();
         endCompiler();
-        return !parser_.hadError();
+        return parser_.hadError() ? std::nullopt : std::optional{std::move(function_)};
     }
 
     const Compiler::ParseRule& Compiler::getRule(TokenType type) {
         return rules[static_cast<std::size_t>(type)];
     }
 
-    Chunk* Compiler::currentChunk() { return chunk_; }
+    Chunk* Compiler::currentChunk() { return &function_.chunk_; }
 
     void Compiler::endCompiler() { 
         emitReturn();
         if(DEBUG_PRINT_CODE && !parser_.hadError()) {
-            disassembleChunk(currentChunk(), "code");
+            disassembleChunk(currentChunk(), !function_.name_.empty() ? function_.name_ : "<script>");
         }
     }
 
@@ -219,7 +220,7 @@ namespace pegasus {
             return 0;
         }
 
-        return chunk_->addConstant(Value{parser_.previousToken().lexeme_});
+        return currentChunk()->addConstant(Value{parser_.previousToken().lexeme_});
     }
 
     void Compiler::defineVariable(const std::size_t global) {
@@ -466,7 +467,7 @@ namespace pegasus {
         bool isLocal{arg != -1};
 
         if(!isLocal) {
-            std::size_t globalArg{chunk_->addConstant(Value{name.lexeme_})};
+            std::size_t globalArg{currentChunk()->addConstant(Value{name.lexeme_})};
 
             if(canAssign && match(TokenType::EQUAL)) {
                 expression();

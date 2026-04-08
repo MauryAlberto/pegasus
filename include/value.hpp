@@ -39,17 +39,6 @@ namespace pegasus {
             }
         }, value);
     }
-    
-    inline Value notValue(const Value& value) {
-        return std::visit([](auto&& v) -> Value {
-            using T = std::decay_t<decltype(v)>;
-            if constexpr(std::is_arithmetic_v<T>) {
-                return Value{!v};
-            } else {
-                throw std::runtime_error("operand must be a number");
-            }
-        }, value);
-    }
 
     inline bool isFalsey(const Value& value) {
         return std::visit([](auto&& v) -> bool {
@@ -66,5 +55,9 @@ namespace pegasus {
                 throw std::runtime_error("unhandled type in isFalsey");
             }
         }, value);
+    }
+
+    inline Value notValue(const Value& value) {
+        return Value{isFalsey(value)};
     }
 }

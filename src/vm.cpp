@@ -3,6 +3,7 @@
 namespace pegasus {
     InterpretResult VM::run() {
         try {
+            CallFrame& frame{frames_[frameCount_ - 1]};
             while(true) {
                 if constexpr(DEBUG_TRACE_EXECUTION) {
                     printf("%-10s", "");
@@ -12,27 +13,27 @@ namespace pegasus {
                         printf(" ]");
                     }
                     printf("\n");
-                    disassembleInstruction(chunk_, static_cast<std::size_t>(ip_ - chunk_->getCode()));
+                    disassembleInstruction(&frame.function_.chunk_, static_cast<std::size_t>(frame.ip_ - frame.function_.chunk_.getCode()));
                 }
 
-                OpCode instruction{static_cast<OpCode>(*ip_++)};
+                OpCode instruction{static_cast<OpCode>(*frame.ip_++)};
                 switch(instruction) {
                     case OpCode::OP_CONSTANT: {
-                        const std::uint8_t constantIndex{*ip_++};
-                        Value constant{chunk_->getConstant(constantIndex)};
+                        const std::uint8_t constantIndex{*frame.ip_++};
+                        Value constant{frame.function_.chunk_.getConstant(constantIndex)};
                         push(constant);
                         break;
                     }
                     case OpCode::OP_CONSTANT_LONG: {
-                        const std::size_t constantIndex{readConstantIndexLong()};
-                        Value constant{chunk_->getConstant(constantIndex)};
+                        const std::size_t constantIndex{readConstantIndexLong(frame.ip_)};
+                        Value constant{frame.function_.chunk_.getConstant(constantIndex)};
                         push(constant);
                         break;
                     }
 
                     case OpCode::OP_DEFINE_GLOBAL: {
-                        const std::size_t constantIndex{*ip_++};
-                        Value identifier{chunk_->getConstant(constantIndex)};
+                        const std::size_t constantIndex{*frame.ip_++};
+                        Value identifier{frame.function_.chunk_.getConstant(constantIndex)};
                         std::string_view variableName{extractVariableName(identifier)};
                         std::string_view internedName{pool_.intern(variableName)};
                         globalVariables_[internedName] = peek(0);
@@ -41,8 +42,8 @@ namespace pegasus {
                     }
 
                     case OpCode::OP_DEFINE_GLOBAL_LONG: {
-                        const std::size_t constantIndex{readConstantIndexLong()};
-                        Value identifier{chunk_->getConstant(constantIndex)};
+                        const std::size_t constantIndex{readConstantIndexLong(frame.ip_)};
+                        Value identifier{frame.function_.chunk_.getConstant(constantIndex)};
                         std::string_view variableName{extractVariableName(identifier)};
                         std::string_view internedName{pool_.intern(variableName)};
                         globalVariables_[internedName] = peek(0);
@@ -51,8 +52,8 @@ namespace pegasus {
                     }
 
                     case OpCode::OP_GET_GLOBAL: {
-                        const std::size_t constantIndex{static_cast<std::size_t>(*ip_++)};
-                        Value identifier{chunk_->getConstant(constantIndex)};
+                        const std::size_t constantIndex{static_cast<std::size_t>(*frame.ip_++)};
+                        Value identifier{frame.function_.chunk_.getConstant(constantIndex)};
                         std::string_view variableName{extractVariableName(identifier)};
                         std::string_view internedName{pool_.intern(variableName)};
 
@@ -66,8 +67,8 @@ namespace pegasus {
                     }
 
                     case OpCode::OP_GET_GLOBAL_LONG: {
-                        const std::size_t constantIndex{readConstantIndexLong()};
-                        Value identifier{chunk_->getConstant(constantIndex)};
+                        const std::size_t constantIndex{readConstantIndexLong(frame.ip_)};
+                        Value identifier{frame.function_.chunk_.getConstant(constantIndex)};
                         std::string_view variableName{extractVariableName(identifier)};
                         std::string_view internedName{pool_.intern(variableName)};
 
@@ -80,8 +81,8 @@ namespace pegasus {
                         break;
                     }
                     case OpCode::OP_SET_GLOBAL: {
-                        const std::size_t constantIndex{static_cast<std::size_t>(*ip_++)};
-                        Value identifier{chunk_->getConstant(constantIndex)};
+                        const std::size_t constantIndex{static_cast<std::size_t>(*frame.ip_++)};
+                        Value identifier{frame.function_.chunk_.getConstant(constantIndex)};
                         std::string_view variableName{extractVariableName(identifier)};
                         std::string_view internedName{pool_.intern(variableName)};
 
@@ -95,8 +96,8 @@ namespace pegasus {
                     }
 
                     case OpCode::OP_SET_GLOBAL_LONG: {
-                        const std::size_t constantIndex{readConstantIndexLong()};
-                        Value identifier{chunk_->getConstant(constantIndex)};
+                        const std::size_t constantIndex{readConstantIndexLong(frame.ip_)};
+                        Value identifier{frame.function_.chunk_.getConstant(constantIndex)};
                         std::string_view variableName{extractVariableName(identifier)};
                         std::string_view internedName{pool_.intern(variableName)};
 
@@ -110,51 +111,51 @@ namespace pegasus {
                     }
 
                     case OpCode::OP_GET_LOCAL: {
-                        const std::uint8_t slot{*ip_++};
+                        const std::uint8_t slot{*frame.ip_++};
                         push(stack_[slot]);
                         break;
                     }
 
                     case OpCode::OP_GET_LOCAL_LONG: {
-                        const std::size_t slot{readConstantIndexLong()};
+                        const std::size_t slot{readConstantIndexLong(frame.ip_)};
                         push(stack_[slot]);
                         break;
                     }
 
                     case OpCode::OP_SET_LOCAL: {
-                        const std::uint8_t slot{*ip_++};
+                        const std::uint8_t slot{*frame.ip_++};
                         stack_[slot] = peek(0);
                         break;
                     }
 
                     case OpCode::OP_SET_LOCAL_LONG: {
-                        const std::size_t slot{readConstantIndexLong()};
+                        const std::size_t slot{readConstantIndexLong(frame.ip_)};
                         stack_[slot] = peek(0);
                         break;
                     }
 
                     case OpCode::OP_JUMP: {
-                        const std::uint8_t lsb{*ip_++};
-                        const std::uint8_t msb{*ip_++};
+                        const std::uint8_t lsb{*frame.ip_++};
+                        const std::uint8_t msb{*frame.ip_++};
                         const std::uint16_t offset{static_cast<std::uint16_t>((msb << 8) | lsb)};
-                        ip_ += offset;
+                        frame.ip_ += offset;
                         break;
                     }
                     
                     case OpCode::OP_JUMP_IF_FALSE: {
-                        const std::uint8_t lsb{*ip_++};
-                        const std::uint8_t msb{*ip_++};
+                        const std::uint8_t lsb{*frame.ip_++};
+                        const std::uint8_t msb{*frame.ip_++};
                         const std::uint16_t offset{static_cast<std::uint16_t>((msb << 8) | lsb)};
                         
-                        if(isFalsey(peek(0))) ip_ += offset;
+                        if(isFalsey(peek(0))) frame.ip_ += offset;
                         break;
                     }
                     
                     case OpCode::OP_LOOP: {
-                        const std::uint8_t lsb{*ip_++};
-                        const std::uint8_t msb{*ip_++};
+                        const std::uint8_t lsb{*frame.ip_++};
+                        const std::uint8_t msb{*frame.ip_++};
                         const std::uint16_t offset{static_cast<std::uint16_t>((msb << 8) | lsb)};
-                        ip_ -= offset;
+                        frame.ip_ -= offset;
                         break;
                     }
 
@@ -185,10 +186,14 @@ namespace pegasus {
     }
     
     InterpretResult VM::interpret(std::string_view source) {
-        Chunk chunk;
-        if(!compile(source, chunk)) return InterpretResult::COMPILE_ERROR;
-        chunk_ = &chunk;
-        ip_ = chunk_->getCode();
+        auto function{compile(source)};
+        if(!function) return InterpretResult::COMPILE_ERROR;
+
+        CallFrame& frame{frames_[frameCount_++]};
+        frame.function_ = std::move(*function);
+        frame.ip_ = frame.function_.chunk_.getCode();
+        frame.slots_ = stack_.data();
+
         return run();
     }
 
@@ -273,10 +278,10 @@ namespace pegasus {
         }, identifier);
     }
 
-    std::size_t VM::readConstantIndexLong() {
-        const std::size_t lowByte{static_cast<std::size_t>(*ip_++)};
-        const std::size_t midByte{static_cast<std::size_t>(*ip_++)};
-        const std::size_t highByte{static_cast<std::size_t>(*ip_++)};
+    std::size_t VM::readConstantIndexLong(const std::uint8_t* frameIp) {
+        const std::size_t lowByte{static_cast<std::size_t>(*frameIp++)};
+        const std::size_t midByte{static_cast<std::size_t>(*frameIp++)};
+        const std::size_t highByte{static_cast<std::size_t>(*frameIp++)};
         return (highByte << 16) | (midByte << 8) | lowByte;
     }
 }

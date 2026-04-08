@@ -5,9 +5,11 @@
 #include <string>
 #include <limits>
 #include <cstddef>
+#include <optional>
 #include <string_view>
 #include "chunk.hpp"
 #include "scanner.hpp"
+#include "object.hpp"
 #include "debug.hpp"
 
 namespace pegasus {
@@ -40,12 +42,11 @@ namespace pegasus {
     class Compiler {
         public:
             Compiler() = delete;
-            Compiler(Parser& parser, Chunk& chunk) : parser_{parser}, chunk_{&chunk} {}
-            bool compile();
+            explicit Compiler(Parser& parser) : parser_{parser} {}
+            std::optional<ObjFunction> compile();
 
         private:
             Parser& parser_;
-            Chunk* chunk_{nullptr};
             static constexpr int DEBUG_PRINT_CODE = true;
 
             enum class Precedence {
@@ -61,6 +62,14 @@ namespace pegasus {
                 PREC_CALL,          // . ()
                 PREC_PRIMARY
             };
+
+            enum class FunctionType {
+                TYPE_FUNCTION,
+                TYPE_SCRIPT
+            };
+
+            ObjFunction function_{};
+            FunctionType functionType_;
 
             static constexpr int TOKEN_COUNT = static_cast<int>(TokenType::TOKEN_SIZE);
             using ParseFn = void(Compiler::*)(bool canAssign);
@@ -126,10 +135,10 @@ namespace pegasus {
             static const std::array<ParseRule, TOKEN_COUNT> rules;
     };
 
-    inline bool compile(std::string_view source, Chunk& chunk) {
+    inline std::optional<ObjFunction> compile(std::string_view source) {
         Scanner scanner{source};
         Parser parser{scanner};
-        Compiler compiler{parser, chunk};
+        Compiler compiler{parser};
         return compiler.compile();
     }
 }

@@ -4,14 +4,12 @@
 #include <sstream>
 #include <iostream>
 #include <string_view>
-#include "chunk.hpp"
 #include "vm.hpp"
 #include "debug.hpp"
 
 static void repl() {
     std::string line;
-    pegasus::Chunk chunk{};
-    pegasus::VM vm{chunk};
+    pegasus::VM vm{};
     while(true) {
         printf("> ");
         if(!std::getline(std::cin, line)) {
@@ -33,8 +31,7 @@ static void runFile(std::string_view path) {
     std::ostringstream buffer;
     buffer << file.rdbuf();
     std::string source{buffer.str()};
-    pegasus::Chunk chunk{};
-    pegasus::VM vm{chunk};
+    pegasus::VM vm{};
 
     pegasus::InterpretResult result{vm.interpret(source)};
     if(result == pegasus::InterpretResult::COMPILE_ERROR) exit(65);

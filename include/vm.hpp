@@ -9,9 +9,11 @@
 #include "debug.hpp"
 #include "value.hpp"
 #include "compiler.hpp"
+#include "object.hpp"
 
 namespace pegasus {
-    inline constexpr int STACK_SIZE = 1024;
+    inline constexpr int FRAME_MAX = 64;
+    inline constexpr int STACK_SIZE = FRAME_MAX * 256;
 
     enum class InterpretResult {
         OK,
@@ -29,7 +31,7 @@ namespace pegasus {
         LESS
     };
 
-    class stringPool {
+    class StringPool {
         public:
             std::string_view intern(std::string_view sv) {
                 auto it{pool_.find(std::string(sv))};
@@ -42,19 +44,23 @@ namespace pegasus {
             std::unordered_set<std::string> pool_{};
     };
 
+    struct CallFrame {
+        ObjFunction function_;
+        const uint8_t* ip_;
+        Value* slots_;
+    };
+
     class VM {
         public:
-            VM() = delete;
-            explicit VM(Chunk& chunk) : chunk_{&chunk}, ip_{chunk_->getCode()} {}
             InterpretResult run();
             InterpretResult interpret(std::string_view source);
 
         private:
-            Chunk* chunk_{nullptr};
-            const std::uint8_t* ip_{nullptr};
+            std::size_t frameCount_{0};
+            std::array<CallFrame, FRAME_MAX> frames_{};
             std::array<Value, STACK_SIZE> stack_{};
             Value* stackTop_ {stack_.data()};
-            stringPool pool_{};
+            StringPool pool_{};
             std::unordered_map<std::string_view, Value> globalVariables_{};
 
             void push(Value value);
@@ -62,7 +68,7 @@ namespace pegasus {
             Value peek(int distance);
             void binaryOp(BinaryOp op);
             std::string_view extractVariableName(const Value& idenfitier);
-            std::size_t readConstantIndexLong();
+            std::size_t readConstantIndexLong(const std::uint8_t* frameIp);
 
     };
 }
