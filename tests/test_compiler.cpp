@@ -6,7 +6,8 @@ using namespace pegasus;
 
 // Helper: compile source and return the ObjFunction
 static std::optional<ObjFunction> compileSource(std::string_view source) {
-    return compile(source);
+    FunctionPool funcPool;
+    return compile(source, funcPool);
 }
 
 // Helper: get all opcodes from a chunk

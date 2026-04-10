@@ -12,6 +12,7 @@ add_executable(pegasus
     src/chunk.cpp
     src/compiler.cpp
     src/scanner.cpp
+    src/parser.cpp
     src/vm.cpp
 )
 
@@ -51,6 +52,7 @@ add_library(pegasus_lib STATIC
     src/chunk.cpp
     src/compiler.cpp
     src/scanner.cpp
+    src/parser.cpp
     src/vm.cpp
 )
 

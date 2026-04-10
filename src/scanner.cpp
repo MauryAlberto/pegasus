@@ -149,7 +149,7 @@ namespace pegasus {
                 switch(start_[1]) {
                     case 'a': return matchKeyword("false", TokenType::FALSE);
                     case 'o': return matchKeyword("for", TokenType::FOR);
-                    case 'u': return matchKeyword("fun", TokenType::FUN);
+                    case 'n': return matchKeyword("fn", TokenType::FN);
                 }
                 break;
             case 't':

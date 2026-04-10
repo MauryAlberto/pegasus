@@ -9,45 +9,21 @@
 #include <string_view>
 #include "chunk.hpp"
 #include "scanner.hpp"
+#include "parser.hpp"
 #include "object.hpp"
+#include "function_pool.hpp"
 #include "debug.hpp"
 
 namespace pegasus {
-    class Parser {
-        public:
-            Parser() = delete;
-            explicit Parser(Scanner& scanner) : scanner_{scanner} {}
-
-            void advance();
-            void consume(TokenType expectedType, std::string_view message);
-            int previousLine() const;
-            const Token& previousToken() const;
-            const Token& currentToken() const;
-            bool hadError() const;
-            bool isInPanicMode() const;
-            void resetPanicMode();
-            void errorAt(const Token& token, std::string_view message);
-            void errorAtCurrent(std::string_view message);
-            void error(std::string_view message);
-
-        private:
-            Scanner& scanner_;
-            Token current_{};
-            Token previous_{};
-            bool hadError_{false};
-            bool panicMode_{false};
-    };
-
-    inline constexpr int LOCAL_STACK_SIZE = 256;
     class Compiler {
         public:
             Compiler() = delete;
-            explicit Compiler(Parser& parser) : parser_{parser} {}
+            explicit Compiler(Parser& parser, FunctionPool& funcPool) : parser_{parser}, funcPool_(funcPool) {}
             std::optional<ObjFunction> compile();
 
         private:
-            Parser& parser_;
             static constexpr int DEBUG_PRINT_CODE = true;
+            static constexpr int LOCAL_STACK_SIZE = 256;
 
             enum class Precedence {
                 PREC_NONE,
@@ -68,39 +44,49 @@ namespace pegasus {
                 TYPE_SCRIPT
             };
 
+            // State
+            Parser& parser_;
+            FunctionPool& funcPool_;
             ObjFunction function_{};
             FunctionType functionType_;
+            
 
+            // Locals
+            static constexpr std::size_t UNINITIALIZED{std::numeric_limits<std::size_t>::max()};
+            struct Local {
+                std::string_view name;
+                std::size_t depth;
+             };
+             std::array<Local, LOCAL_STACK_SIZE> locals_{};
+             std::size_t localCount_{0};
+             std::size_t scopeDepth_{0};
+
+             // Parse rules
             static constexpr int TOKEN_COUNT = static_cast<int>(TokenType::TOKEN_SIZE);
             using ParseFn = void(Compiler::*)(bool canAssign);
-
             struct ParseRule {
                 ParseFn prefix;
                 ParseFn infix;
                 Precedence precedence;
              };
-
-             static constexpr std::size_t UNINITIALIZED{std::numeric_limits<std::size_t>::max()};
-             struct Local {
-                std::string_view name;
-                std::size_t depth;
-             };
-
-             std::array<Local, LOCAL_STACK_SIZE> locals_{};
-             std::size_t localCount_{0};
-             std::size_t scopeDepth_{0};
-
+            static const std::array<ParseRule, TOKEN_COUNT> rules;
             const ParseRule& getRule(TokenType type);
+
+            // Bytecode emission
             Chunk* currentChunk();
-            void endCompiler();
             void emitByte(OpCode op, int line = -1);
             void emitByte(std::uint8_t byte, int line = -1);
             void emitReturn();
             void emitConstant(Value value);
             std::size_t emitJump(OpCode op);
             void patchJump(std::size_t offset);
+            void emitLoop(std::size_t loopStart);
+            void endCompiler();
+
+            // Parsing
             void parsePrecedence(Precedence precedence);
             void declaration();
+            void fnDeclaration();
             void varDeclaration();
             std::size_t parseVariable(std::string_view errorMessage);
             void defineVariable(std::size_t global);
@@ -111,7 +97,6 @@ namespace pegasus {
             void ifStatement();
             void whileStatement();
             void forStatement();
-            void emitLoop(std::size_t loopStart);
             void expressionStatement();
             void expression();
             void number(bool canAssign);
@@ -124,21 +109,22 @@ namespace pegasus {
             void namedVariable(const Token& type, bool canAssign);
             void and_(bool canAssign);
             void or_(bool canAssign);
+            void call(bool canAssign);
             void beginScope();
             void endScope();
             void block();
-            void declareVariable();
+            void function(FunctionType funcType);
+            void declareLocalVariable();
             void addLocal(std::string_view name);
-            void markInitialized();
+            void initializeLocal();
             int resolveLocal(const Token& name);
-
-            static const std::array<ParseRule, TOKEN_COUNT> rules;
     };
 
-    inline std::optional<ObjFunction> compile(std::string_view source) {
+    inline std::optional<ObjFunction> compile(std::string_view source, FunctionPool& funcPool) {
+        static_cast<void>(funcPool);
         Scanner scanner{source};
         Parser parser{scanner};
-        Compiler compiler{parser};
+        Compiler compiler{parser, funcPool};
         return compiler.compile();
     }
 }

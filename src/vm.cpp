@@ -13,29 +13,29 @@ namespace pegasus {
                         printf(" ]");
                     }
                     printf("\n");
-                    disassembleInstruction(&frame.function_.chunk_, static_cast<std::size_t>(frame.ip_ - frame.function_.chunk_.getCode()));
+                    disassembleInstruction(&currentFunction(frame).chunk_, static_cast<std::size_t>(frame.ip_ - currentFunction(frame).chunk_.getCode()));
                 }
 
                 OpCode instruction{static_cast<OpCode>(*frame.ip_++)};
                 switch(instruction) {
                     case OpCode::OP_CONSTANT: {
                         const std::uint8_t constantIndex{*frame.ip_++};
-                        Value constant{frame.function_.chunk_.getConstant(constantIndex)};
+                        Value constant{currentFunction(frame).chunk_.getConstant(constantIndex)};
                         push(constant);
                         break;
                     }
                     case OpCode::OP_CONSTANT_LONG: {
                         const std::size_t constantIndex{readConstantIndexLong(frame.ip_)};
-                        Value constant{frame.function_.chunk_.getConstant(constantIndex)};
+                        Value constant{currentFunction(frame).chunk_.getConstant(constantIndex)};
                         push(constant);
                         break;
                     }
 
                     case OpCode::OP_DEFINE_GLOBAL: {
                         const std::size_t constantIndex{*frame.ip_++};
-                        Value identifier{frame.function_.chunk_.getConstant(constantIndex)};
+                        Value identifier{currentFunction(frame).chunk_.getConstant(constantIndex)};
                         std::string_view variableName{extractVariableName(identifier)};
-                        std::string_view internedName{pool_.intern(variableName)};
+                        std::string_view internedName{strPool_.intern(variableName)};
                         globalVariables_[internedName] = peek(0);
                         pop();
                         break;
@@ -43,9 +43,9 @@ namespace pegasus {
 
                     case OpCode::OP_DEFINE_GLOBAL_LONG: {
                         const std::size_t constantIndex{readConstantIndexLong(frame.ip_)};
-                        Value identifier{frame.function_.chunk_.getConstant(constantIndex)};
+                        Value identifier{currentFunction(frame).chunk_.getConstant(constantIndex)};
                         std::string_view variableName{extractVariableName(identifier)};
-                        std::string_view internedName{pool_.intern(variableName)};
+                        std::string_view internedName{strPool_.intern(variableName)};
                         globalVariables_[internedName] = peek(0);
                         pop();
                         break;
@@ -53,9 +53,9 @@ namespace pegasus {
 
                     case OpCode::OP_GET_GLOBAL: {
                         const std::size_t constantIndex{static_cast<std::size_t>(*frame.ip_++)};
-                        Value identifier{frame.function_.chunk_.getConstant(constantIndex)};
+                        Value identifier{currentFunction(frame).chunk_.getConstant(constantIndex)};
                         std::string_view variableName{extractVariableName(identifier)};
-                        std::string_view internedName{pool_.intern(variableName)};
+                        std::string_view internedName{strPool_.intern(variableName)};
 
                         auto it{globalVariables_.find(internedName)};
                         if(it == globalVariables_.end()) {
@@ -68,9 +68,9 @@ namespace pegasus {
 
                     case OpCode::OP_GET_GLOBAL_LONG: {
                         const std::size_t constantIndex{readConstantIndexLong(frame.ip_)};
-                        Value identifier{frame.function_.chunk_.getConstant(constantIndex)};
+                        Value identifier{currentFunction(frame).chunk_.getConstant(constantIndex)};
                         std::string_view variableName{extractVariableName(identifier)};
-                        std::string_view internedName{pool_.intern(variableName)};
+                        std::string_view internedName{strPool_.intern(variableName)};
 
                         auto it{globalVariables_.find(internedName)};
                         if(it == globalVariables_.end()) {
@@ -82,9 +82,9 @@ namespace pegasus {
                     }
                     case OpCode::OP_SET_GLOBAL: {
                         const std::size_t constantIndex{static_cast<std::size_t>(*frame.ip_++)};
-                        Value identifier{frame.function_.chunk_.getConstant(constantIndex)};
+                        Value identifier{currentFunction(frame).chunk_.getConstant(constantIndex)};
                         std::string_view variableName{extractVariableName(identifier)};
-                        std::string_view internedName{pool_.intern(variableName)};
+                        std::string_view internedName{strPool_.intern(variableName)};
 
                         auto it{globalVariables_.find(internedName)};
                         if(it == globalVariables_.end()) {
@@ -97,9 +97,9 @@ namespace pegasus {
 
                     case OpCode::OP_SET_GLOBAL_LONG: {
                         const std::size_t constantIndex{readConstantIndexLong(frame.ip_)};
-                        Value identifier{frame.function_.chunk_.getConstant(constantIndex)};
+                        Value identifier{currentFunction(frame).chunk_.getConstant(constantIndex)};
                         std::string_view variableName{extractVariableName(identifier)};
-                        std::string_view internedName{pool_.intern(variableName)};
+                        std::string_view internedName{strPool_.intern(variableName)};
 
                         auto it{globalVariables_.find(internedName)};
                         if(it == globalVariables_.end()) {
@@ -159,6 +159,16 @@ namespace pegasus {
                         break;
                     }
 
+                    case OpCode::OP_CALL: {
+                        std::uint8_t argCount{*frame.ip_++};
+                        Value callee{peek(argCount)};
+
+                        if(!callValue(callee, argCount)) {
+                            return InterpretResult::RUNTIME_ERROR;
+                        }
+                        break;
+                    }
+
                     case OpCode::OP_ADD:        {binaryOp(BinaryOp::ADD);break;}
                     case OpCode::OP_SUBTRACT:   {binaryOp(BinaryOp::SUBTRACT);break;}
                     case OpCode::OP_MULTIPLY:   {binaryOp(BinaryOp::MULTIPLY);break;}
@@ -186,12 +196,13 @@ namespace pegasus {
     }
     
     InterpretResult VM::interpret(std::string_view source) {
-        auto function{compile(source)};
+        auto function{compile(source, funcPool_)};
         if(!function) return InterpretResult::COMPILE_ERROR;
 
+        FunctionIndex funcIndex{funcPool_.addFunction(std::move(*function))};
         CallFrame& frame{frames_[frameCount_++]};
-        frame.function_ = std::move(*function);
-        frame.ip_ = frame.function_.chunk_.getCode();
+        frame.function_ = funcIndex;
+        frame.ip_ = funcPool_.getFunction(funcIndex).chunk_.getCode();
         frame.slots_ = stack_.data();
 
         return run();
@@ -283,5 +294,24 @@ namespace pegasus {
         const std::size_t midByte{static_cast<std::size_t>(*frameIp++)};
         const std::size_t highByte{static_cast<std::size_t>(*frameIp++)};
         return (highByte << 16) | (midByte << 8) | lowByte;
+    }
+
+    bool VM::callValue(const Value &callee, std::uint8_t argCount) {
+        if(std::holds_alternative<FunctionIndex>(callee)) {
+            const FunctionIndex funcIndex{std::get<FunctionIndex>(callee)};
+            const ObjFunction& function{funcPool_.getFunction(funcIndex)};
+            if(function.arity_ == argCount) {
+                CallFrame& frame{frames_[frameCount_++]};
+                frame.function_ = funcIndex;
+                frame.ip_ = function.chunk_.getCode();
+                frame.slots_ = stackTop_ - argCount - 1;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    const ObjFunction& VM::currentFunction(const CallFrame &frame) {
+        return funcPool_.getFunction(frame.function_);
     }
 }

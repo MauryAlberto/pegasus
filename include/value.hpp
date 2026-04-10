@@ -4,9 +4,10 @@
 #include <variant>
 #include <stdexcept>
 #include <string_view>
+#include "function_index.hpp"
 
 namespace pegasus {
-    using Value = std::variant<int, double, bool, std::string, std::string_view, std::monostate>;
+    using Value = std::variant<int, double, bool, std::string, std::string_view, std::monostate, FunctionIndex>;
 
     inline void printValue(const Value& value) {
         std::visit([](auto&& v) {

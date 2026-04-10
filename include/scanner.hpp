@@ -20,7 +20,7 @@ namespace pegasus {
         // keywords
         TRUE, FALSE, IF, ELSE,
         AND, OR, FOR, WHILE,
-        FUN, CLASS, PRINT, RETURN,
+        FN, CLASS, PRINT, RETURN,
         VAR, THIS, NIL, SUPER,
 
         ERROR, EOF_,

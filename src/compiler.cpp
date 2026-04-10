@@ -5,7 +5,7 @@ namespace pegasus {
 
     const std::array<Compiler::ParseRule, Compiler::TOKEN_COUNT> Compiler::rules {{
 
-        /* LEFT_PAREN */    {&Compiler::grouping, nullptr, Compiler::Precedence::PREC_NONE},
+        /* LEFT_PAREN */    {&Compiler::grouping, &Compiler::call, Compiler::Precedence::PREC_CALL},
         /* RIGHT_PAREN */   {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
         /* LEFT_BRACE */    {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
         /* RIGHT_BRACE */   {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
@@ -38,7 +38,7 @@ namespace pegasus {
         /* OR */            {nullptr, &Compiler::or_, Compiler::Precedence::PREC_NONE},
         /* FOR */           {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
         /* WHILE */         {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
-        /* FUN */           {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
+        /* FN */            {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
         /* CLASS */         {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
         /* PRINT */         {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
         /* RETURN */        {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
@@ -51,64 +51,6 @@ namespace pegasus {
          /* EOF_ */         {nullptr, nullptr, Compiler::Precedence::PREC_NONE}
     }};
 
-    void Parser::advance() {
-        previous_ = current_;
-        while(true) {
-            current_ = scanner_.scanToken();
-            if(current_.type_ != TokenType::ERROR) break;
-            errorAtCurrent(current_.lexeme_);
-        }
-    }
-
-    void Parser::consume(TokenType expectedType, std::string_view message) {
-        if(current_.type_ == expectedType) {
-            advance();
-            return;
-        }
-        errorAtCurrent(message);
-    }
-
-    int Parser::previousLine() const            { return previous_.line_; }
-
-    const Token& Parser::previousToken() const  { return previous_; }
-
-    const Token& Parser::currentToken() const   { return current_; }
-
-    bool Parser::hadError() const { return hadError_; }
-
-    bool Parser::isInPanicMode() const {
-        return panicMode_;
-    }
-
-    void Parser::resetPanicMode() {
-        panicMode_ = false;
-    }
-
-    void Parser::errorAt(const Token& token, std::string_view message) {
-        if(panicMode_) return;
-        panicMode_ = true;
-        fprintf(stderr, "[line %d] error", token.line_);
-
-        if(token.type_ == TokenType::EOF_) {
-            fprintf(stderr, " at end");
-        } else if(token.type_ == TokenType::ERROR) {
-
-        } else {
-            fprintf(stderr, " at '%.*s'", static_cast<int>(token.lexeme_.size()), token.lexeme_.data());
-        }
-
-        fprintf(stderr, ": %s\n", message.data());
-        hadError_ = true;
-    }
-
-    void Parser::errorAtCurrent(std::string_view message) {
-        errorAt(current_, message);
-    }
-
-    void Parser::error(std::string_view message) {
-        errorAt(previous_, message);
-    }
-
     std::optional<ObjFunction> Compiler::compile() {
         functionType_ = FunctionType::TYPE_SCRIPT;
         parser_.advance();
@@ -117,7 +59,7 @@ namespace pegasus {
         return parser_.hadError() ? std::nullopt : std::optional{std::move(function_)};
     }
 
-    const Compiler::ParseRule& Compiler::getRule(TokenType type) {
+    const Compiler::ParseRule &Compiler::getRule(TokenType type) {
         return rules[static_cast<std::size_t>(type)];
     }
 
@@ -190,13 +132,22 @@ namespace pegasus {
     }
 
     void Compiler::declaration() {
-        if(match(TokenType::VAR)) {
+        if(match(TokenType::FN)) {
+            fnDeclaration();
+        } else if(match(TokenType::VAR)) {
             varDeclaration();
         } else {
             statement();
         }
 
         if(parser_.isInPanicMode()) synchronize();
+    }
+
+    void Compiler::fnDeclaration() {
+        std::size_t globalIndex{parseVariable("expect function name")};
+        initializeLocal();
+        function(FunctionType::TYPE_FUNCTION);
+        defineVariable(globalIndex);
     }
 
     void Compiler::varDeclaration() {
@@ -216,16 +167,16 @@ namespace pegasus {
         parser_.consume(TokenType::IDENTIFIER, errorMessage);
 
         if(scopeDepth_ > 0) {
-            declareVariable();
+            declareLocalVariable();
             return 0;
         }
-
-        return currentChunk()->addConstant(Value{parser_.previousToken().lexeme_});
+        
+        return currentChunk()->writeConstant(Value{parser_.previousToken().lexeme_}, parser_.previousLine());
     }
 
     void Compiler::defineVariable(const std::size_t global) {
         if(scopeDepth_ > 0) {
-            markInitialized();
+            initializeLocal();
             return;
         }
 
@@ -265,7 +216,7 @@ namespace pegasus {
             if(parser_.previousToken().type_ == TokenType::SEMICOLON) return;
             switch(parser_.currentToken().type_) {
                 case TokenType::CLASS:
-                case TokenType::FUN:
+                case TokenType::FN:
                 case TokenType::VAR:
                 case TokenType::FOR:
                 case TokenType::IF:
@@ -517,6 +468,7 @@ namespace pegasus {
         }
 
     }
+
     void Compiler::and_(bool canAssign) {
         static_cast<void>(canAssign);
         std::size_t endJump{emitJump(OpCode::OP_JUMP_IF_FALSE)};
@@ -537,8 +489,24 @@ namespace pegasus {
         patchJump(endJump);
     }
 
-    void Compiler::beginScope()
-    {
+    void Compiler::call(bool canAssign) {
+        static_cast<void>(canAssign);
+        std::uint8_t argCount{0};
+        
+        if(parser_.currentToken().type_ != TokenType::RIGHT_PAREN) {
+            do {
+                expression();
+
+                if(argCount == 255) {
+                    parser_.error("can't have more than 255 arguments");
+                }
+
+                argCount++;
+            } while(match(TokenType::COMMA));
+        }
+    }
+
+    void Compiler::beginScope() {
         scopeDepth_++;
     }
 
@@ -558,16 +526,42 @@ namespace pegasus {
         parser_.consume(TokenType::RIGHT_BRACE, "expected '}' after block");
     }
 
-    void Compiler::declareVariable() {
+    void Compiler::function(FunctionType funcType) {
+        Compiler compiler{parser_, funcPool_};
+        compiler.functionType_ = funcType;
+        compiler.function_.name_ = std::string(compiler.parser_.previousToken().lexeme_);
+
+        compiler.beginScope();
+        compiler.parser_.consume(TokenType::LEFT_PAREN, "expect '(' after function name");
+        if(compiler.parser_.currentToken().type_ != TokenType::RIGHT_PAREN) {
+            do {
+                if(compiler.function_.arity_ == 255) {
+                    compiler.parser_.errorAtCurrent("can't have more than 255 parameters");
+                }
+                compiler.function_.arity_++;
+                std::size_t constant{compiler.parseVariable("expect parameter name")};
+                compiler.defineVariable(constant);
+            } while(compiler.match(TokenType::COMMA));
+        }
+        compiler.parser_.consume(TokenType::RIGHT_PAREN, "expect ')' after parameters");
+        compiler.parser_.consume(TokenType::LEFT_BRACE, "expect '{' before function body");
+        compiler.block();
+        compiler.endCompiler();
+
+        FunctionIndex index{funcPool_.addFunction(std::move(compiler.function_))};
+        emitConstant(Value{index});
+    }
+
+    void Compiler::declareLocalVariable() {
         std::string_view name{parser_.previousToken().lexeme_};
 
         for(int i{static_cast<int>(localCount_ - 1)}; i >= 0; i--) {
-            std::size_t idx{static_cast<std::size_t>(i)};
-            if(locals_[idx].depth != UNINITIALIZED && locals_[idx].depth < scopeDepth_) {
+            std::size_t index{static_cast<std::size_t>(i)};
+            if(locals_[index].depth != UNINITIALIZED && locals_[index].depth < scopeDepth_) {
                 break;
             }
 
-            if(locals_[idx].name == name) {
+            if(locals_[index].name == name) {
                 parser_.error("already a variable with this name in this scope");
             }
         }
@@ -584,7 +578,8 @@ namespace pegasus {
         localCount_++;
     }
     
-    void Compiler::markInitialized() {
+    void Compiler::initializeLocal() {
+        if(scopeDepth_ == 0) return;
         locals_[localCount_ - 1].depth = scopeDepth_;
     }
     

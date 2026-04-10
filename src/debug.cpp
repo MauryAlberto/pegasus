@@ -135,6 +135,8 @@ namespace pegasus {
                 return jumpInstruction("OP_JUMP_IF_FALSE", 1, chunk, offset);
             case OpCode::OP_LOOP:
                 return jumpInstruction("OP_LOOP", -1, chunk, offset);
+            case OpCode::OP_CALL:
+                return byteInstruction("OP_CALL", chunk, offset);
             case OpCode::OP_RETURN:
                 return simpleInstruction("OP_RETURN", offset);
             default:

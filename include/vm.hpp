@@ -10,6 +10,7 @@
 #include "value.hpp"
 #include "compiler.hpp"
 #include "object.hpp"
+#include "function_pool.hpp"
 
 namespace pegasus {
     inline constexpr int FRAME_MAX = 64;
@@ -45,7 +46,7 @@ namespace pegasus {
     };
 
     struct CallFrame {
-        ObjFunction function_;
+        FunctionIndex function_;
         const uint8_t* ip_;
         Value* slots_;
     };
@@ -60,7 +61,8 @@ namespace pegasus {
             std::array<CallFrame, FRAME_MAX> frames_{};
             std::array<Value, STACK_SIZE> stack_{};
             Value* stackTop_ {stack_.data()};
-            StringPool pool_{};
+            StringPool strPool_{};
+            FunctionPool funcPool_{};
             std::unordered_map<std::string_view, Value> globalVariables_{};
 
             void push(Value value);
@@ -69,6 +71,7 @@ namespace pegasus {
             void binaryOp(BinaryOp op);
             std::string_view extractVariableName(const Value& idenfitier);
             std::size_t readConstantIndexLong(const std::uint8_t* frameIp);
-
+            bool callValue(const Value& callee, std::uint8_t argCount);
+            const ObjFunction& currentFunction(const CallFrame& frame);
     };
 }

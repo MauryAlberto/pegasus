@@ -110,7 +110,7 @@ TEST_CASE("Scanner recognises all keywords", "[scanner]") {
     REQUIRE(tokens[2].type_  == TokenType::ELSE);
     REQUIRE(tokens[3].type_  == TokenType::FALSE);
     REQUIRE(tokens[4].type_  == TokenType::FOR);
-    REQUIRE(tokens[5].type_  == TokenType::FUN);
+    REQUIRE(tokens[5].type_  == TokenType::FN);
     REQUIRE(tokens[6].type_  == TokenType::IF);
     REQUIRE(tokens[7].type_  == TokenType::NIL);
     REQUIRE(tokens[8].type_  == TokenType::OR);
