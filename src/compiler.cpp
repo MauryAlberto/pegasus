@@ -503,7 +503,13 @@ namespace pegasus {
 
                 argCount++;
             } while(match(TokenType::COMMA));
+
+            
         }
+
+        parser_.consume(TokenType::RIGHT_PAREN, "expect ')' after arguments");
+        emitByte(OpCode::OP_CALL);
+        emitByte(argCount);
     }
 
     void Compiler::beginScope() {

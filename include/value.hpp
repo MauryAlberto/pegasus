@@ -24,6 +24,8 @@ namespace pegasus {
                 printf("%s", v.c_str());
             } else if constexpr(std::is_same_v<T, std::monostate>) {
                 printf("nil");
+            } else if constexpr(std::is_same_v<T, FunctionIndex>) {
+                printf("%zu", v.index_);
             } else {
                 throw std::runtime_error("unknown value type");
             }

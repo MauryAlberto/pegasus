@@ -46,7 +46,7 @@ namespace pegasus {
     };
 
     struct CallFrame {
-        FunctionIndex function_;
+        FunctionIndex funcIndex_;
         const uint8_t* ip_;
         Value* slots_;
     };
@@ -73,5 +73,6 @@ namespace pegasus {
             std::size_t readConstantIndexLong(const std::uint8_t* frameIp);
             bool callValue(const Value& callee, std::uint8_t argCount);
             const ObjFunction& currentFunction(const CallFrame& frame);
+            void runtimeError(std::string_view errorMessage);
     };
 }
