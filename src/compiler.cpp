@@ -83,6 +83,7 @@ namespace pegasus {
     }
 
     void Compiler::emitReturn() {
+        emitByte(OpCode::OP_NIL);
         emitByte(OpCode::OP_RETURN);
     }
     
@@ -196,6 +197,8 @@ namespace pegasus {
             printStatement();
         } else if(match(TokenType::IF)) {
             ifStatement();
+        } else if(match(TokenType::RETURN)) {
+            returnStatement();
         } else if(match(TokenType::WHILE)) {
             whileStatement();
         } else if(match(TokenType::FOR)) {
@@ -258,6 +261,20 @@ namespace pegasus {
         emitByte(OpCode::OP_POP);   // if false we jump here and pop value off the stack from expression
         if(match(TokenType::ELSE)) statement(); // execute statment(s)
         patchJump(jumpElseBlock); // now that we have the code size for the "else" block we can figure out how much to jump by
+    }
+
+    void Compiler::returnStatement() {
+        if(functionType_ == FunctionType::TYPE_SCRIPT) {
+            parser_.error("can't return from top-level code");
+        }
+
+        if(match(TokenType::SEMICOLON)) {
+            emitReturn();
+        } else {
+            expression();
+            parser_.consume(TokenType::SEMICOLON, "expect ';' after return value");
+            emitByte(OpCode::OP_RETURN);
+        }
     }
 
     void Compiler::whileStatement() {
@@ -538,6 +555,8 @@ namespace pegasus {
         compiler.function_.name_ = std::string(compiler.parser_.previousToken().lexeme_);
 
         compiler.beginScope();
+        compiler.addLocal("");
+        compiler.initializeLocal();
         compiler.parser_.consume(TokenType::LEFT_PAREN, "expect '(' after function name");
         if(compiler.parser_.currentToken().type_ != TokenType::RIGHT_PAREN) {
             do {

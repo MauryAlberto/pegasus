@@ -248,7 +248,7 @@ namespace pegasus {
         Value b{pop()};
         Value a{pop()};
         
-        std::visit([&op, this](auto&& aVal, auto&& bVal) {
+        std::visit([&a, &b, &op, this](auto&& aVal, auto&& bVal) {
             using A = std::decay_t<decltype(aVal)>;
             using B = std::decay_t<decltype(bVal)>;
 
@@ -284,7 +284,8 @@ namespace pegasus {
                         throw std::runtime_error("invalid operator for strings");
                 }
             } else {
-                throw std::runtime_error("operands must be of same type for binary operations");
+                    throw std::runtime_error("operands must be of same type for binary operations: " + 
+                    std::to_string(a.index()) + " and " + std::to_string(b.index()));
             }
 
         }, a, b);
@@ -309,6 +310,15 @@ namespace pegasus {
     }
 
     bool VM::callValue(const Value &callee, std::uint8_t argCount) {
+        if(std::holds_alternative<NativeFunction>(callee)) {
+            const NativeFunction& nativeFunc{std::get<NativeFunction>(callee)};
+            Value result{nativeFunc.function_(argCount, stackTop_ - argCount)};
+            stackTop_ -= argCount + 1;
+            push(result);
+            return true;
+        }
+
+
         if(!std::holds_alternative<FunctionIndex>(callee)) {
             throw std::runtime_error("can only call functions");
         }
@@ -350,5 +360,18 @@ namespace pegasus {
                 fprintf(stderr, "%s()\n", objFunc.name_.c_str());
             }
         }
+    }
+
+    static Value clockNative(std::size_t argCount, Value *args) {
+        static_cast<void>(argCount);
+        static_cast<void>(args);
+        auto now{std::chrono::high_resolution_clock::now()};
+        auto duration{now.time_since_epoch()};
+        double seconds{std::chrono::duration<double>(duration).count()};
+        return Value{seconds};
+    }
+
+    void VM::defineNatives() {
+        globalVariables_[strPool_.intern("clock")] = Value{NativeFunction{clockNative}};
     }
 }

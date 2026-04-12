@@ -1,5 +1,6 @@
 #pragma once
 #include <array>
+#include <chrono>
 #include <stdexcept>
 #include <type_traits>
 #include <string_view>
@@ -53,6 +54,7 @@ namespace pegasus {
 
     class VM {
         public:
+            VM() { defineNatives(); }
             InterpretResult run();
             InterpretResult interpret(std::string_view source);
 
@@ -74,5 +76,6 @@ namespace pegasus {
             bool callValue(const Value& callee, std::uint8_t argCount);
             const ObjFunction& currentFunction(const CallFrame& frame);
             void runtimeError(std::string_view errorMessage);
+            void defineNatives();
     };
 }

@@ -7,8 +7,12 @@
 #include "function_index.hpp"
 
 namespace pegasus {
-    using Value = std::variant<int, double, bool, std::string, std::string_view, std::monostate, FunctionIndex>;
-
+    struct NativeFunction;
+    using Value = std::variant<int, double, bool, std::string, std::string_view, std::monostate, FunctionIndex, NativeFunction>;
+    using NativeFn = Value(*)(std::size_t argCount, Value* args);
+    struct NativeFunction {
+        NativeFn function_;
+    };
     inline void printValue(const Value& value) {
         std::visit([](auto&& v) {
             using T = std::decay_t<decltype(v)>;
@@ -26,6 +30,8 @@ namespace pegasus {
                 printf("nil");
             } else if constexpr(std::is_same_v<T, FunctionIndex>) {
                 printf("%zu", v.index_);
+            } else if constexpr(std::is_same_v<T, NativeFunction>) {
+                printf("<native fn>");
             } else {
                 throw std::runtime_error("unknown value type");
             }
@@ -37,6 +43,8 @@ namespace pegasus {
             using T = std::decay_t<decltype(v)>;
             if constexpr(std::is_arithmetic_v<T>) {
                 return Value{-v};
+            }  else if constexpr(std::is_same_v<T, NativeFunction>) {
+                throw std::runtime_error("cannot negate a native function");
             } else {
                 throw std::runtime_error("operand must be a number");
             }
@@ -54,6 +62,8 @@ namespace pegasus {
                 return v == 0;
             } else if constexpr(std::is_same_v<T, std::string_view> || std::is_same_v<T, std::string>) {
                 return v.empty();
+            } else if constexpr(std::is_same_v<T, NativeFunction>) {
+                throw std::runtime_error("native functions are neither true or false");
             } else {
                 throw std::runtime_error("unhandled type in isFalsey");
             }

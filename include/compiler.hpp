@@ -22,7 +22,7 @@ namespace pegasus {
             std::optional<ObjFunction> compile();
 
         private:
-            static constexpr int DEBUG_PRINT_CODE = true;
+            static constexpr int DEBUG_PRINT_CODE = false;
             static constexpr int LOCAL_STACK_SIZE = 256;
 
             enum class Precedence {
@@ -95,6 +95,7 @@ namespace pegasus {
             bool match(TokenType type);
             void printStatement();
             void ifStatement();
+            void returnStatement();
             void whileStatement();
             void forStatement();
             void expressionStatement();

@@ -23,7 +23,6 @@ namespace pegasus {
 
     std::size_t Chunk::writeConstant(Value value, int lineNum) {
         std::size_t constantIndex = addConstant(value);
-
         if(constantIndex <= 255) {
             write(OpCode::OP_CONSTANT, lineNum);
             write(static_cast<std::uint8_t>(constantIndex), lineNum);
