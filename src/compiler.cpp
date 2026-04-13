@@ -59,16 +59,54 @@ namespace pegasus {
         return parser_.hadError() ? std::nullopt : std::optional{std::move(function_)};
     }
 
-    const Compiler::ParseRule &Compiler::getRule(TokenType type) {
+    int Compiler::addUpvalue(std::uint8_t index, bool isLocal) {
+        std::size_t upvalueCount{function_.upvalueCount};
+
+        for(std::size_t i{0}; i < upvalueCount; i++) {
+            if(upvalues_[i].index == index && upvalues_[i].isLocal == isLocal) {
+                return static_cast<int>(i);
+            }
+        }
+
+        if(upvalueCount >= 256) {
+            parser_.error("too many closure variables in function");
+        }
+
+        upvalues_[upvalueCount].isLocal = isLocal;
+        upvalues_[upvalueCount].index = index;
+        function_.upvalueCount++;
+        return static_cast<int>(upvalueCount);
+    }
+
+    int Compiler::resolveUpvalue(Compiler* compiler, const Token& name) {
+        if(compiler->enclosing_ == nullptr) return -1;
+
+        // check if the variable is a local in the immediately enclosing function
+        int local{compiler->enclosing_->resolveLocal(name)};
+        if(local != -1) {
+            return compiler->addUpvalue(static_cast<std::uint8_t>(local), true);
+        }
+
+        // check if it's already an upvalue in the enclosing function
+        int upvalue{resolveUpvalue(compiler->enclosing_, name)};
+        if(upvalue != -1) {
+            return compiler->addUpvalue(static_cast<std::uint8_t>(upvalue), false);
+        }
+
+        return -1;
+    }
+
+    const Compiler::ParseRule &Compiler::getRule(TokenType type)
+    {
         return rules[static_cast<std::size_t>(type)];
     }
 
-    Chunk* Compiler::currentChunk() { return &function_.chunk_; }
+    Chunk* Compiler::currentChunk() { return &function_.chunk; }
 
     void Compiler::endCompiler() { 
         emitReturn();
         if(DEBUG_PRINT_CODE && !parser_.hadError()) {
-            disassembleChunk(currentChunk(), !function_.name_.empty() ? function_.name_ : "<script>");
+            disassembleChunk(currentChunk(), !function_.name.empty() ? function_.name : "<script>");
         }
     }
 
@@ -434,7 +472,43 @@ namespace pegasus {
         int arg{resolveLocal(name)};
         bool isLocal{arg != -1};
 
-        if(!isLocal) {
+        if(isLocal) {
+            // local variable
+            if(canAssign && match(TokenType::EQUAL)) {
+                expression();
+                if(arg <= 255) {
+                    emitByte(OpCode::OP_SET_LOCAL);
+                    emitByte(static_cast<std::uint8_t>(arg));
+                } else {
+                    emitByte(OpCode::OP_SET_LOCAL_LONG);
+                    emitByte(static_cast<std::uint8_t>(arg & 0xFF));
+                    emitByte(static_cast<std::uint8_t>((arg >> 8) & 0xFF));
+                    emitByte(static_cast<std::uint8_t>((arg >> 16) & 0xFF));
+                }
+            } else {
+                if(arg <= 255) {
+                    emitByte(OpCode::OP_GET_LOCAL);
+                    emitByte(static_cast<std::uint8_t>(arg));
+                } else {
+                    emitByte(OpCode::OP_GET_LOCAL_LONG);
+                    emitByte(static_cast<std::uint8_t>(arg & 0xFF));
+                    emitByte(static_cast<std::uint8_t>((arg >> 8) & 0xFF));
+                    emitByte(static_cast<std::uint8_t>((arg >> 16) & 0xFF));
+                }
+            }
+
+        } else if((arg = resolveUpvalue(this, name)) != -1) {
+            // upvalue
+            if(canAssign && match(TokenType::EQUAL)) {
+                expression();
+                emitByte(OpCode::OP_SET_UPVALUE);
+                emitByte(static_cast<std::uint8_t>(arg));
+            } else {
+                emitByte(OpCode::OP_GET_UPVALUE);
+                emitByte(static_cast<std::uint8_t>(arg));
+            }
+        } else {
+            // global variable
             std::size_t globalArg{currentChunk()->addConstant(Value{name.lexeme_})};
 
             if(canAssign && match(TokenType::EQUAL)) {
@@ -457,29 +531,6 @@ namespace pegasus {
                     emitByte(static_cast<std::uint8_t>(globalArg & 0xFF));
                     emitByte(static_cast<std::uint8_t>((globalArg >> 8) & 0xFF));
                     emitByte(static_cast<std::uint8_t>((globalArg >> 16) & 0xFF));
-                }
-            }
-        } else {
-            if(canAssign && match(TokenType::EQUAL)) {
-                expression();
-                if(arg <= 255) {
-                    emitByte(OpCode::OP_SET_LOCAL);
-                    emitByte(static_cast<std::uint8_t>(arg));
-                } else {
-                    emitByte(OpCode::OP_SET_LOCAL_LONG);
-                    emitByte(static_cast<std::uint8_t>(arg & 0xFF));
-                    emitByte(static_cast<std::uint8_t>((arg >> 8) & 0xFF));
-                    emitByte(static_cast<std::uint8_t>((arg >> 16) & 0xFF));
-                }
-            } else {
-                if(arg <= 255) {
-                    emitByte(OpCode::OP_GET_LOCAL);
-                    emitByte(static_cast<std::uint8_t>(arg));
-                } else {
-                    emitByte(OpCode::OP_GET_LOCAL_LONG);
-                    emitByte(static_cast<std::uint8_t>(arg & 0xFF));
-                    emitByte(static_cast<std::uint8_t>((arg >> 8) & 0xFF));
-                    emitByte(static_cast<std::uint8_t>((arg >> 16) & 0xFF));
                 }
             }
         }
@@ -551,8 +602,9 @@ namespace pegasus {
 
     void Compiler::function(FunctionType funcType) {
         Compiler compiler{parser_, funcPool_};
+        compiler.enclosing_ = this; // link to enclosing compiler
         compiler.functionType_ = funcType;
-        compiler.function_.name_ = std::string(compiler.parser_.previousToken().lexeme_);
+        compiler.function_.name = std::string(compiler.parser_.previousToken().lexeme_);
 
         compiler.beginScope();
         compiler.addLocal("");
@@ -560,10 +612,10 @@ namespace pegasus {
         compiler.parser_.consume(TokenType::LEFT_PAREN, "expect '(' after function name");
         if(compiler.parser_.currentToken().type_ != TokenType::RIGHT_PAREN) {
             do {
-                if(compiler.function_.arity_ == 255) {
+                if(compiler.function_.arity == 255) {
                     compiler.parser_.errorAtCurrent("can't have more than 255 parameters");
                 }
-                compiler.function_.arity_++;
+                compiler.function_.arity++;
                 std::size_t constant{compiler.parseVariable("expect parameter name")};
                 compiler.defineVariable(constant);
             } while(compiler.match(TokenType::COMMA));
@@ -609,13 +661,13 @@ namespace pegasus {
     }
     
     int Compiler::resolveLocal(const Token &name) {
-        for(int i{static_cast<int>(localCount_ - 1)}; i >= 0; i--) {
-            if(locals_[static_cast<std::size_t>(i)].name == name.lexeme_) {
-                if(locals_[static_cast<std::size_t>(i)].depth == UNINITIALIZED) {
+        for(std::size_t i{localCount_}; i > 0; i--) {
+            if(locals_[i - 1].name == name.lexeme_) {
+                if(locals_[i].depth == UNINITIALIZED) {
                     parser_.error("can't read local variable in its own initializer");
                 }
 
-                return i;
+                return static_cast<int>(i);
             }
         }
 

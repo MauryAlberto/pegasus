@@ -31,21 +31,21 @@ TEST_CASE("Compiler emits constant for integer literal", "[compiler]") {
     auto fn = compileSource("42;");
     REQUIRE(fn.has_value());
 
-    auto ops = opcodes(fn->chunk_);
+    auto ops = opcodes(fn->chunk);
     REQUIRE(ops.size() >= 2);
     REQUIRE(ops[0] == OpCode::OP_CONSTANT);
     REQUIRE(ops.back() == OpCode::OP_RETURN);
 
-    std::uint8_t idx = fn->chunk_.getRawByte(1);
-    REQUIRE(std::get<int>(fn->chunk_.getConstant(idx)) == 42);
+    std::uint8_t idx = fn->chunk.getRawByte(1);
+    REQUIRE(std::get<int>(fn->chunk.getConstant(idx)) == 42);
 }
 
 TEST_CASE("Compiler emits constant for floating-point literal", "[compiler]") {
     auto fn = compileSource("3.14;");
     REQUIRE(fn.has_value());
 
-    std::uint8_t idx = fn->chunk_.getRawByte(1);
-    REQUIRE_THAT(std::get<double>(fn->chunk_.getConstant(idx)),
+    std::uint8_t idx = fn->chunk.getRawByte(1);
+    REQUIRE_THAT(std::get<double>(fn->chunk.getConstant(idx)),
                  Catch::Matchers::WithinRel(3.14, 1e-9));
 }
 
@@ -54,7 +54,7 @@ TEST_CASE("Compiler emits OP_NEGATE for unary minus", "[compiler]") {
     auto fn = compileSource("-7;");
     REQUIRE(fn.has_value());
 
-    auto ops = opcodes(fn->chunk_);
+    auto ops = opcodes(fn->chunk);
     REQUIRE(ops.size() == 4);
     REQUIRE(ops[0] == OpCode::OP_CONSTANT);
     REQUIRE(ops[1] == OpCode::OP_NEGATE);
@@ -67,7 +67,7 @@ TEST_CASE("Compiler emits OP_ADD for addition", "[compiler]") {
     auto fn = compileSource("1 + 2;");
     REQUIRE(fn.has_value());
 
-    auto ops = opcodes(fn->chunk_);
+    auto ops = opcodes(fn->chunk);
     REQUIRE(ops.size() == 5);
     REQUIRE(ops[0] == OpCode::OP_CONSTANT);
     REQUIRE(ops[1] == OpCode::OP_CONSTANT);
@@ -79,21 +79,21 @@ TEST_CASE("Compiler emits OP_ADD for addition", "[compiler]") {
 TEST_CASE("Compiler emits OP_SUBTRACT for subtraction", "[compiler]") {
     auto fn = compileSource("5 - 3;");
     REQUIRE(fn.has_value());
-    auto ops = opcodes(fn->chunk_);
+    auto ops = opcodes(fn->chunk);
     REQUIRE(ops[2] == OpCode::OP_SUBTRACT);
 }
 
 TEST_CASE("Compiler emits OP_MULTIPLY for multiplication", "[compiler]") {
     auto fn = compileSource("4 * 6;");
     REQUIRE(fn.has_value());
-    auto ops = opcodes(fn->chunk_);
+    auto ops = opcodes(fn->chunk);
     REQUIRE(ops[2] == OpCode::OP_MULTIPLY);
 }
 
 TEST_CASE("Compiler emits OP_DIVIDE for division", "[compiler]") {
     auto fn = compileSource("8 / 2;");
     REQUIRE(fn.has_value());
-    auto ops = opcodes(fn->chunk_);
+    auto ops = opcodes(fn->chunk);
     REQUIRE(ops[2] == OpCode::OP_DIVIDE);
 }
 
@@ -101,14 +101,14 @@ TEST_CASE("Compiler emits OP_DIVIDE for division", "[compiler]") {
 TEST_CASE("Compiler emits OP_NOT for logical !", "[compiler]") {
     auto fn = compileSource("!true;");
     REQUIRE(fn.has_value());
-    auto ops = opcodes(fn->chunk_);
+    auto ops = opcodes(fn->chunk);
     REQUIRE(ops[1] == OpCode::OP_NOT);
 }
 
 TEST_CASE("Compiler emits OP_EQUAL and OP_NOT for comparison !=", "[compiler]") {
     auto fn = compileSource("true != false;");
     REQUIRE(fn.has_value());
-    auto ops = opcodes(fn->chunk_);
+    auto ops = opcodes(fn->chunk);
     REQUIRE(ops[2] == OpCode::OP_EQUAL);
     REQUIRE(ops[3] == OpCode::OP_NOT);
 }
@@ -116,14 +116,14 @@ TEST_CASE("Compiler emits OP_EQUAL and OP_NOT for comparison !=", "[compiler]") 
 TEST_CASE("Compiler emits OP_EQUAL for comparison ==", "[compiler]") {
     auto fn = compileSource("10 == 10;");
     REQUIRE(fn.has_value());
-    auto ops = opcodes(fn->chunk_);
+    auto ops = opcodes(fn->chunk);
     REQUIRE(ops[2] == OpCode::OP_EQUAL);
 }
 
 TEST_CASE("Compiler emits OP_LESS and OP_NOT for comparison >=", "[compiler]") {
     auto fn = compileSource("10 >= 5;");
     REQUIRE(fn.has_value());
-    auto ops = opcodes(fn->chunk_);
+    auto ops = opcodes(fn->chunk);
     REQUIRE(ops[2] == OpCode::OP_LESS);
     REQUIRE(ops[3] == OpCode::OP_NOT);
 }
@@ -131,14 +131,14 @@ TEST_CASE("Compiler emits OP_LESS and OP_NOT for comparison >=", "[compiler]") {
 TEST_CASE("Compiler emits OP_LESS for  comparison <", "[compiler]") {
     auto fn = compileSource("5 < 10;");
     REQUIRE(fn.has_value());
-    auto ops = opcodes(fn->chunk_);
+    auto ops = opcodes(fn->chunk);
     REQUIRE(ops[2] == OpCode::OP_LESS);
 }
 
 TEST_CASE("Compiler emits OP_GREATER and OP_NOT for comparison <=", "[compiler]") {
     auto fn = compileSource("5 <= 10;");
     REQUIRE(fn.has_value());
-    auto ops = opcodes(fn->chunk_);
+    auto ops = opcodes(fn->chunk);
     REQUIRE(ops[2] == OpCode::OP_GREATER);
     REQUIRE(ops[3] == OpCode::OP_NOT);
 }
@@ -148,7 +148,7 @@ TEST_CASE("Multiplication binds tighter than addition", "[compiler]") {
     auto fn = compileSource("1 + 2 * 3;");
     REQUIRE(fn.has_value());
 
-    auto ops = opcodes(fn->chunk_);
+    auto ops = opcodes(fn->chunk);
     REQUIRE(ops.size() == 7);
     REQUIRE(ops[0] == OpCode::OP_CONSTANT); // 1
     REQUIRE(ops[1] == OpCode::OP_CONSTANT); // 2
@@ -162,7 +162,7 @@ TEST_CASE("Multiplication binds tighter than addition", "[compiler]") {
 TEST_CASE("Division binds tighter than subtraction", "[compiler]") {
     auto fn = compileSource("10 - 6 / 3;");
     REQUIRE(fn.has_value());
-    auto ops = opcodes(fn->chunk_);
+    auto ops = opcodes(fn->chunk);
     REQUIRE(ops[3] == OpCode::OP_DIVIDE);
     REQUIRE(ops[4] == OpCode::OP_SUBTRACT);
 }
@@ -172,7 +172,7 @@ TEST_CASE("Parentheses override default precedence", "[compiler]") {
     auto fn = compileSource("(1 + 2) * 3;");
     REQUIRE(fn.has_value());
 
-    auto ops = opcodes(fn->chunk_);
+    auto ops = opcodes(fn->chunk);
     REQUIRE(ops.size() == 7);
     REQUIRE(ops[0] == OpCode::OP_CONSTANT); // 1
     REQUIRE(ops[1] == OpCode::OP_CONSTANT); // 2
@@ -186,7 +186,7 @@ TEST_CASE("Parentheses override default precedence", "[compiler]") {
 TEST_CASE("Nested parentheses compile correctly", "[compiler]") {
     auto fn = compileSource("((1 + 2));");
     REQUIRE(fn.has_value());
-    auto ops = opcodes(fn->chunk_);
+    auto ops = opcodes(fn->chunk);
     REQUIRE(ops[0] == OpCode::OP_CONSTANT);
     REQUIRE(ops[1] == OpCode::OP_CONSTANT);
     REQUIRE(ops[2] == OpCode::OP_ADD);
@@ -198,7 +198,7 @@ TEST_CASE("Nested parentheses compile correctly", "[compiler]") {
 TEST_CASE("Compiler handles chained additions", "[compiler]") {
     auto fn = compileSource("1 + 2 + 3;");
     REQUIRE(fn.has_value());
-    auto ops = opcodes(fn->chunk_);
+    auto ops = opcodes(fn->chunk);
     REQUIRE(ops.size() == 7);
     REQUIRE(ops[2] == OpCode::OP_ADD);
     REQUIRE(ops[4] == OpCode::OP_ADD);
@@ -207,7 +207,7 @@ TEST_CASE("Compiler handles chained additions", "[compiler]") {
 TEST_CASE("Unary minus in expression: -1 + 2", "[compiler]") {
     auto fn = compileSource("-1 + 2;");
     REQUIRE(fn.has_value());
-    auto ops = opcodes(fn->chunk_);
+    auto ops = opcodes(fn->chunk);
     REQUIRE(ops[0] == OpCode::OP_CONSTANT);
     REQUIRE(ops[1] == OpCode::OP_NEGATE);
     REQUIRE(ops[2] == OpCode::OP_CONSTANT);

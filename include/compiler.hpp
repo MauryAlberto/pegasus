@@ -49,7 +49,16 @@ namespace pegasus {
             FunctionPool& funcPool_;
             ObjFunction function_{};
             FunctionType functionType_;
-            
+            Compiler* enclosing_{nullptr};
+
+            // Upvalues
+            struct UpvalueEntry {
+                std::uint8_t index;
+                bool isLocal; // true = captures from immediately enclosing function's locals
+            };                // false = captures from further out (already an upvalue in enclosing compiler)
+            std::array<UpvalueEntry, 256> upvalues_{};
+            int resolveUpvalue(Compiler* compiler, const Token& name);
+            int addUpvalue(std::uint8_t index, bool isLocal);
 
             // Locals
             static constexpr std::size_t UNINITIALIZED{std::numeric_limits<std::size_t>::max()};
