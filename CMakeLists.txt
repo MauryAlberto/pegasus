@@ -29,7 +29,7 @@ target_compile_options(pegasus PRIVATE
     -fsanitize=undefined
 )
 
-target_link_options(pegasus_lib PRIVATE
+target_link_options(pegasus PRIVATE
     -fsanitize=address
     -fsanitize=undefined
 )

@@ -1,5 +1,5 @@
 #pragma once
-#include "closure.hpp"
+#include "closure_obj.hpp"
 
 namespace pegasus {
     class ClosurePool {

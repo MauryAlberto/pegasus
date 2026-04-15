@@ -1,6 +1,6 @@
 #pragma once
 #include <vector>
-#include "closure.hpp"
+#include "closure_obj.hpp"
 
 namespace pegasus {
     class UpvaluePool {
