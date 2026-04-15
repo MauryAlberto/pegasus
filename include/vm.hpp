@@ -12,6 +12,8 @@
 #include "compiler.hpp"
 #include "object.hpp"
 #include "function_pool.hpp"
+#include "closure_pool.hpp"
+#include "upvalue_pool.hpp"
 
 namespace pegasus {
     inline constexpr int FRAME_MAX = 64;
@@ -47,9 +49,9 @@ namespace pegasus {
     };
 
     struct CallFrame {
-        FunctionIndex funcIndex_;
-        const uint8_t* ip_;
-        Value* slots_;
+        ClosureIndex closureIndex;
+        const std::uint8_t* ip;
+        Value* slots;
     };
 
     class VM {
@@ -65,6 +67,10 @@ namespace pegasus {
             Value* stackTop_ {stack_.data()};
             StringPool strPool_{};
             FunctionPool funcPool_{};
+            ClosurePool closurePool_{};
+            std::vector<ObjUpValue*> openUpvalues_;
+            UpvaluePool upvaluePool_{};
+            UpvalueIndex openUpvalueHead_{SIZE_MAX};
             std::unordered_map<std::string_view, Value> globalVariables_{};
 
             void push(Value value);
@@ -77,5 +83,7 @@ namespace pegasus {
             const ObjFunction& currentFunction(const CallFrame& frame);
             void runtimeError(std::string_view errorMessage);
             void defineNatives();
+            UpvalueIndex captureUpvalue(Value* local);
+            void closeUpvalues(Value* last);
     };
 }

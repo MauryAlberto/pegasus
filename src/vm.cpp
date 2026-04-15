@@ -13,26 +13,26 @@ namespace pegasus {
                         printf(" ]");
                     }
                     printf("\n");
-                    disassembleInstruction(&currentFunction(*frame).chunk, static_cast<std::size_t>(frame->ip_ - currentFunction(*frame).chunk.getCode()));
+                    disassembleInstruction(&currentFunction(*frame).chunk, static_cast<std::size_t>(frame->ip - currentFunction(*frame).chunk.getCode()));
                 }
 
-                OpCode instruction{static_cast<OpCode>(*frame->ip_++)};
+                OpCode instruction{static_cast<OpCode>(*frame->ip++)};
                 switch(instruction) {
                     case OpCode::OP_CONSTANT: {
-                        const std::uint8_t constantIndex{*frame->ip_++};
+                        const std::uint8_t constantIndex{*frame->ip++};
                         Value constant{currentFunction(*frame).chunk.getConstant(constantIndex)};
                         push(constant);
                         break;
                     }
                     case OpCode::OP_CONSTANT_LONG: {
-                        const std::size_t constantIndex{readConstantIndexLong(frame->ip_)};
+                        const std::size_t constantIndex{readConstantIndexLong(frame->ip)};
                         Value constant{currentFunction(*frame).chunk.getConstant(constantIndex)};
                         push(constant);
                         break;
                     }
 
                     case OpCode::OP_DEFINE_GLOBAL: {
-                        const std::size_t constantIndex{*frame->ip_++};
+                        const std::size_t constantIndex{*frame->ip++};
                         Value identifier{currentFunction(*frame).chunk.getConstant(constantIndex)};
                         std::string_view variableName{extractVariableName(identifier)};
                         std::string_view internedName{strPool_.intern(variableName)};
@@ -42,7 +42,7 @@ namespace pegasus {
                     }
 
                     case OpCode::OP_DEFINE_GLOBAL_LONG: {
-                        const std::size_t constantIndex{readConstantIndexLong(frame->ip_)};
+                        const std::size_t constantIndex{readConstantIndexLong(frame->ip)};
                         Value identifier{currentFunction(*frame).chunk.getConstant(constantIndex)};
                         std::string_view variableName{extractVariableName(identifier)};
                         std::string_view internedName{strPool_.intern(variableName)};
@@ -52,7 +52,7 @@ namespace pegasus {
                     }
 
                     case OpCode::OP_GET_GLOBAL: {
-                        const std::size_t constantIndex{static_cast<std::size_t>(*frame->ip_++)};
+                        const std::size_t constantIndex{static_cast<std::size_t>(*frame->ip++)};
                         Value identifier{currentFunction(*frame).chunk.getConstant(constantIndex)};
                         std::string_view variableName{extractVariableName(identifier)};
                         std::string_view internedName{strPool_.intern(variableName)};
@@ -67,7 +67,7 @@ namespace pegasus {
                     }
 
                     case OpCode::OP_GET_GLOBAL_LONG: {
-                        const std::size_t constantIndex{readConstantIndexLong(frame->ip_)};
+                        const std::size_t constantIndex{readConstantIndexLong(frame->ip)};
                         Value identifier{currentFunction(*frame).chunk.getConstant(constantIndex)};
                         std::string_view variableName{extractVariableName(identifier)};
                         std::string_view internedName{strPool_.intern(variableName)};
@@ -81,7 +81,7 @@ namespace pegasus {
                         break;
                     }
                     case OpCode::OP_SET_GLOBAL: {
-                        const std::size_t constantIndex{static_cast<std::size_t>(*frame->ip_++)};
+                        const std::size_t constantIndex{static_cast<std::size_t>(*frame->ip++)};
                         Value identifier{currentFunction(*frame).chunk.getConstant(constantIndex)};
                         std::string_view variableName{extractVariableName(identifier)};
                         std::string_view internedName{strPool_.intern(variableName)};
@@ -96,7 +96,7 @@ namespace pegasus {
                     }
 
                     case OpCode::OP_SET_GLOBAL_LONG: {
-                        const std::size_t constantIndex{readConstantIndexLong(frame->ip_)};
+                        const std::size_t constantIndex{readConstantIndexLong(frame->ip)};
                         Value identifier{currentFunction(*frame).chunk.getConstant(constantIndex)};
                         std::string_view variableName{extractVariableName(identifier)};
                         std::string_view internedName{strPool_.intern(variableName)};
@@ -111,56 +111,56 @@ namespace pegasus {
                     }
 
                     case OpCode::OP_GET_LOCAL: {
-                        const std::uint8_t slot{*frame->ip_++};
-                        push(frame->slots_[slot]);
+                        const std::uint8_t slot{*frame->ip++};
+                        push(frame->slots[slot]);
                         break;
                     }
 
                     case OpCode::OP_GET_LOCAL_LONG: {
-                        const std::size_t slot{readConstantIndexLong(frame->ip_)};
-                        push(frame->slots_[slot]);
+                        const std::size_t slot{readConstantIndexLong(frame->ip)};
+                        push(frame->slots[slot]);
                         break;
                     }
 
                     case OpCode::OP_SET_LOCAL: {
-                        const std::uint8_t slot{*frame->ip_++};
-                        frame->slots_[slot] = peek(0);
+                        const std::uint8_t slot{*frame->ip++};
+                        frame->slots[slot] = peek(0);
                         break;
                     }
 
                     case OpCode::OP_SET_LOCAL_LONG: {
-                        const std::size_t slot{readConstantIndexLong(frame->ip_)};
-                        frame->slots_[slot] = peek(0);
+                        const std::size_t slot{readConstantIndexLong(frame->ip)};
+                        frame->slots[slot] = peek(0);
                         break;
                     }
 
                     case OpCode::OP_JUMP: {
-                        const std::uint8_t lsb{*frame->ip_++};
-                        const std::uint8_t msb{*frame->ip_++};
+                        const std::uint8_t lsb{*frame->ip++};
+                        const std::uint8_t msb{*frame->ip++};
                         const std::uint16_t offset{static_cast<std::uint16_t>((msb << 8) | lsb)};
-                        frame->ip_ += offset;
+                        frame->ip += offset;
                         break;
                     }
                     
                     case OpCode::OP_JUMP_IF_FALSE: {
-                        const std::uint8_t lsb{*frame->ip_++};
-                        const std::uint8_t msb{*frame->ip_++};
+                        const std::uint8_t lsb{*frame->ip++};
+                        const std::uint8_t msb{*frame->ip++};
                         const std::uint16_t offset{static_cast<std::uint16_t>((msb << 8) | lsb)};
                         
-                        if(isFalsey(peek(0))) frame->ip_ += offset;
+                        if(isFalsey(peek(0))) frame->ip += offset;
                         break;
                     }
                     
                     case OpCode::OP_LOOP: {
-                        const std::uint8_t lsb{*frame->ip_++};
-                        const std::uint8_t msb{*frame->ip_++};
+                        const std::uint8_t lsb{*frame->ip++};
+                        const std::uint8_t msb{*frame->ip++};
                         const std::uint16_t offset{static_cast<std::uint16_t>((msb << 8) | lsb)};
-                        frame->ip_ -= offset;
+                        frame->ip -= offset;
                         break;
                     }
 
                     case OpCode::OP_CALL: {
-                        std::uint8_t argCount{*frame->ip_++};
+                        std::uint8_t argCount{*frame->ip++};
                         Value callee{peek(argCount)};
 
                         if(!callValue(callee, argCount)) {
@@ -169,6 +169,54 @@ namespace pegasus {
 
                         frame = &frames_[frameCount_ - 1];
                         break;
+                    }
+
+                    case OpCode::OP_CLOSURE: {
+                        std::uint8_t constantIndex{*frame->ip++};
+                        Value constant{currentFunction(*frame).chunk.getConstant(constantIndex)};
+                        FunctionIndex funcIndex{std::get<FunctionIndex>(constant)};
+                        const ObjFunction& function{funcPool_.getFunction(funcIndex)};
+                    
+                        ObjClosure closure;
+                        closure.funcIndex = funcIndex;
+                        closure.upvalues.resize(function.upvalueCount);
+
+                        for(std::size_t i{0}; i < function.upvalueCount; i++) {
+                            std::uint8_t isLocal{*frame->ip++};
+                            std::uint8_t index{*frame->ip++};
+                            if(isLocal) {                      
+                                closure.upvalues[i] = captureUpvalue(frame->slots + index);
+                            } else {                           
+                                ObjClosure& enclosing{closurePool_.getClosure(frame->closureIndex)};
+                                closure.upvalues[i] = enclosing.upvalues[index];
+                            }                                                                                                        
+                        }
+
+                        ClosureIndex closureIndex{closurePool_.addClosure(std::move(closure))};
+                        push(Value{closureIndex});
+                        break;
+                    }
+
+                    case OpCode::OP_GET_UPVALUE: {
+                        std::uint8_t slot{*frame->ip++};
+                        ObjClosure& closure{closurePool_.getClosure(frame->closureIndex)};
+                        ObjUpValue& uv{upvaluePool_.getUpvalue(closure.upvalues[slot])};
+                        push(*uv.location);
+                        break;
+                    }
+
+                    case OpCode::OP_SET_UPVALUE: {
+                        std::uint8_t slot{*frame->ip++};
+                        ObjClosure& closure{closurePool_.getClosure(frame->closureIndex)};
+                        ObjUpValue& uv{upvaluePool_.getUpvalue(closure.upvalues[slot])};
+                        *uv.location = peek(0);
+                        break;
+                    }
+
+                    case OpCode::OP_CLOSE_UPVALUE: {
+                        closeUpvalues(stackTop_ - 1);
+                        pop();
+                        break;   
                     }
 
                     case OpCode::OP_ADD:        {binaryOp(BinaryOp::ADD);break;}
@@ -187,12 +235,13 @@ namespace pegasus {
                     case OpCode::OP_POP:        {pop();break;}
                     case OpCode::OP_RETURN: {
                         Value result{pop()};
+                        closeUpvalues(frame->slots);
                         frameCount_--;
                         if(frameCount_ == 0) {
                             pop();
                             return InterpretResult::OK;
                         }
-                        stackTop_ = frame->slots_;
+                        stackTop_ = frame->slots;
                         push(result);
                         frame = &frames_[frameCount_ - 1];
                         break;
@@ -212,10 +261,16 @@ namespace pegasus {
         if(!function) return InterpretResult::COMPILE_ERROR;
 
         FunctionIndex funcIndex{funcPool_.addFunction(std::move(*function))};
+        
+        ObjClosure scriptClosure;
+        scriptClosure.funcIndex = funcIndex;
+        ClosureIndex closureIndex{closurePool_.addClosure(std::move(scriptClosure))};
+
+        push(Value{closureIndex});
         CallFrame& frame{frames_[frameCount_++]};
-        frame.funcIndex_ = funcIndex;
-        frame.ip_ = funcPool_.getFunction(funcIndex).chunk.getCode();
-        frame.slots_ = stack_.data();
+        frame.closureIndex = closureIndex;
+        frame.ip = funcPool_.getFunction(funcIndex).chunk.getCode();
+        frame.slots = stack_.data();
 
         return run();
     }
@@ -318,31 +373,32 @@ namespace pegasus {
             return true;
         }
 
+        if(std::holds_alternative<ClosureIndex>(callee)) {
+            const ClosureIndex closureIndex{std::get<ClosureIndex>(callee)};
+            const ObjClosure& closure{closurePool_.getClosure(closureIndex)};
+            const ObjFunction& function{funcPool_.getFunction(closure.funcIndex)};
+            
+            if(function.arity != argCount) {
+                throw std::runtime_error("expected " + std::to_string(function.arity) + " arguments but got " + std::to_string(argCount));
+            }
 
-        if(!std::holds_alternative<FunctionIndex>(callee)) {
-            throw std::runtime_error("can only call functions");
+            if(frameCount_ >= FRAME_MAX) {
+                throw std::runtime_error("stack overflow");
+            }
+
+            CallFrame& newFrame{frames_[frameCount_++]};
+            newFrame.closureIndex = closureIndex;
+            newFrame.ip = function.chunk.getCode();
+            newFrame.slots = stackTop_ - argCount - 1;
+            return true;
         }
 
-        const FunctionIndex funcIndex{std::get<FunctionIndex>(callee)};
-        const ObjFunction& function{funcPool_.getFunction(funcIndex)};
-
-        if(function.arity != argCount) {
-            throw std::runtime_error("expected " + std::to_string(function.arity) + " arguments but got " + std::to_string(argCount));
-        }
-
-        if(frameCount_ >= FRAME_MAX) {
-            throw std::runtime_error("stack overflow");
-        }
-
-        CallFrame& frame{frames_[frameCount_++]};
-        frame.funcIndex_ = funcIndex;
-        frame.ip_ = function.chunk.getCode();
-        frame.slots_ = stackTop_ - argCount - 1;
-        return true;
+        throw std::runtime_error("can only call functions");
     }
 
     const ObjFunction& VM::currentFunction(const CallFrame &frame) {
-        return funcPool_.getFunction(frame.funcIndex_);
+        const ObjClosure& closure{closurePool_.getClosure(frame.closureIndex)};
+        return funcPool_.getFunction(closure.funcIndex);
     }
     
     void VM::runtimeError(std::string_view errorMessage) {
@@ -350,8 +406,9 @@ namespace pegasus {
 
         for(std::size_t i{frameCount_}; i > 0; i--) {
             const CallFrame& frame{frames_[i - 1]};
-            const ObjFunction& objFunc{funcPool_.getFunction(frame.funcIndex_)};
-            std::size_t offset{static_cast<std::size_t>(frame.ip_ - objFunc.chunk.getCode())};
+            const ObjClosure& closure{closurePool_.getClosure(frame.closureIndex)};
+            const ObjFunction& objFunc{funcPool_.getFunction(closure.funcIndex)};
+            std::size_t offset{static_cast<std::size_t>(frame.ip - objFunc.chunk.getCode())};
             fprintf(stderr, "[line %d] in ", objFunc.chunk.getLine(offset));
 
             if(objFunc.name.empty()) {
@@ -373,5 +430,50 @@ namespace pegasus {
 
     void VM::defineNatives() {
         globalVariables_[strPool_.intern("clock")] = Value{NativeFunction{clockNative}};
+    }
+    
+    UpvalueIndex VM::captureUpvalue(Value *local) {
+        UpvalueIndex prev{SIZE_MAX};
+        UpvalueIndex current{openUpvalueHead_};
+
+        // walk the list looking for an existing upvalue or the right insertion point
+        while (current.index != SIZE_MAX) {
+            ObjUpValue& uv{upvaluePool_.getUpvalue(current)};
+            if(uv.location == local) {
+                return current;
+            }
+
+            if(uv.location < local) {
+                break;
+            }
+
+            prev = current;
+            current = uv.next;
+        }
+
+        // create new upvalue
+        ObjUpValue newUpvalue;
+        newUpvalue.location = local;
+        newUpvalue.next = current;
+        UpvalueIndex newIndex{upvaluePool_.addUpValue(std::move(newUpvalue))};
+    
+        if(prev.index == SIZE_MAX) {
+            openUpvalueHead_ = newIndex;
+        } else {
+            upvaluePool_.getUpvalue(prev).next = newIndex;
+        }
+
+        return newIndex;
+    }
+    
+    void VM::closeUpvalues(Value *last) {
+        while(openUpvalueHead_.index != SIZE_MAX) {
+            ObjUpValue& uv{upvaluePool_.getUpvalue(openUpvalueHead_)};
+            if(uv.location < last) break;
+
+            uv.closed = *uv.location;
+            uv.location = &uv.closed;
+            openUpvalueHead_ = uv.next;
+        }
     }
 }

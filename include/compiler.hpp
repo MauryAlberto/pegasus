@@ -22,7 +22,7 @@ namespace pegasus {
             std::optional<ObjFunction> compile();
 
         private:
-            static constexpr int DEBUG_PRINT_CODE = true;
+            static constexpr int DEBUG_PRINT_CODE = false;
             static constexpr int LOCAL_STACK_SIZE = 256;
 
             enum class Precedence {
@@ -65,6 +65,7 @@ namespace pegasus {
             struct Local {
                 std::string_view name;
                 std::size_t depth;
+                bool isCaptured{false};
              };
              std::array<Local, LOCAL_STACK_SIZE> locals_{};
              std::size_t localCount_{0};

@@ -2,7 +2,7 @@
 #include <cstddef>
 
 namespace pegasus {
-    struct FunctionIndex {
+    struct ClosureIndex {
         std::size_t index;
     };
 }

@@ -17,21 +17,7 @@ add_executable(pegasus
 )
 
 target_compile_options(pegasus PRIVATE
-    -g
-    -Wall
-    -Wextra
-    -Werror
-    -Wshadow
-    -Wpedantic
-    -Wconversion
-    -Wsign-conversion
-    -fsanitize=address
-    -fsanitize=undefined
-)
-
-target_link_options(pegasus PRIVATE
-    -fsanitize=address
-    -fsanitize=undefined
+    -O3
 )
 
 target_include_directories(pegasus PRIVATE include)

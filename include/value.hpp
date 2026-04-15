@@ -5,10 +5,11 @@
 #include <stdexcept>
 #include <string_view>
 #include "function_index.hpp"
+#include "closure_index.hpp"
 
 namespace pegasus {
     struct NativeFunction;
-    using Value = std::variant<int, double, bool, std::string, std::string_view, std::monostate, FunctionIndex, NativeFunction>;
+    using Value = std::variant<int, double, bool, std::string, std::string_view, std::monostate, FunctionIndex, NativeFunction, ClosureIndex>;
     using NativeFn = Value(*)(std::size_t argCount, Value* args);
     struct NativeFunction {
         NativeFn function_;
@@ -29,9 +30,11 @@ namespace pegasus {
             } else if constexpr(std::is_same_v<T, std::monostate>) {
                 printf("nil");
             } else if constexpr(std::is_same_v<T, FunctionIndex>) {
-                printf("%zu", v.index_);
+                printf("%zu", v.index);
             } else if constexpr(std::is_same_v<T, NativeFunction>) {
                 printf("<native fn>");
+            } else if constexpr (std::is_same_v<T, ClosureIndex>) {
+                printf("<closure>");
             } else {
                 throw std::runtime_error("unknown value type");
             }
@@ -45,6 +48,10 @@ namespace pegasus {
                 return Value{-v};
             }  else if constexpr(std::is_same_v<T, NativeFunction>) {
                 throw std::runtime_error("cannot negate a native function");
+            } else if constexpr(std::is_same_v<T, FunctionIndex>) {
+                throw std::runtime_error("cannot negate a function index");
+            } else if constexpr(std::is_same_v<T, ClosureIndex>) {
+                throw std::runtime_error("cannote negate a closure index");
             } else {
                 throw std::runtime_error("operand must be a number");
             }
@@ -64,6 +71,10 @@ namespace pegasus {
                 return v.empty();
             } else if constexpr(std::is_same_v<T, NativeFunction>) {
                 throw std::runtime_error("native functions are neither true or false");
+            } else if constexpr(std::is_same_v<T, FunctionIndex>) {
+                throw std::runtime_error("function index is neither true or false");
+            } else if constexpr(std::is_same_v<T, ClosureIndex>) {
+                throw std::runtime_error("closure index is neither true or false");
             } else {
                 throw std::runtime_error("unhandled type in isFalsey");
             }

@@ -1,20 +1,22 @@
 #pragma once
 #include <vector>
 #include <cstddef>
+#include <variant>
 #include "value.hpp"
 
 namespace pegasus {
-    struct ClosreIndex {
-        std::size_t index_;
+    struct UpvalueIndex {
+        std::size_t index;
     };
 
-    struct UpValue {
-        Value* location_;
+    struct ObjUpValue {
+        Value* location;
+        Value closed{std::monostate{}};
+        UpvalueIndex next{SIZE_MAX}; // SIZE_MAX means no next
     };
 
     struct ObjClosure {
-        ObjClosure() { upValues_.reserve(8); }
-        FunctionIndex funcIndex_;
-        std::vector<UpValue> upValues_;
+        FunctionIndex funcIndex;
+        std::vector<UpvalueIndex> upvalues;
     };
 }

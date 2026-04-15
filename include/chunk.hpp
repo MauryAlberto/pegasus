@@ -40,6 +40,8 @@ namespace pegasus {
         OP_CALL,
         OP_GET_UPVALUE,
         OP_SET_UPVALUE,
+        OP_CLOSURE,
+        OP_CLOSE_UPVALUE,
         OP_RETURN
     };
 

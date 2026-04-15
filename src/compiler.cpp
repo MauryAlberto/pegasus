@@ -83,13 +83,14 @@ namespace pegasus {
 
         // check if the variable is a local in the immediately enclosing function
         int local{compiler->enclosing_->resolveLocal(name)};
-        if(local != -1) {
+        if(local != -1) {                                        // local: index of where upvalue is inside parent functions local array
+            compiler->enclosing_->locals_[static_cast<std::size_t>(local)].isCaptured = true;
             return compiler->addUpvalue(static_cast<std::uint8_t>(local), true);
         }
 
         // check if it's already an upvalue in the enclosing function
         int upvalue{resolveUpvalue(compiler->enclosing_, name)};
-        if(upvalue != -1) {
+        if(upvalue != -1) {                                      // upvalue: index of where upvalue is inside parent
             return compiler->addUpvalue(static_cast<std::uint8_t>(upvalue), false);
         }
 
@@ -587,7 +588,11 @@ namespace pegasus {
     void Compiler::endScope() {
         scopeDepth_--;
         while(localCount_ > 0 && locals_[localCount_ - 1].depth > scopeDepth_) {
-            emitByte(OpCode::OP_POP);
+            if(locals_[localCount_ - 1].isCaptured) {
+                emitByte(OpCode::OP_CLOSE_UPVALUE);
+            } else {
+                emitByte(OpCode::OP_POP);
+            }
             localCount_--;
         }
     }
@@ -625,8 +630,16 @@ namespace pegasus {
         compiler.block();
         compiler.endCompiler();
 
-        FunctionIndex index{funcPool_.addFunction(std::move(compiler.function_))};
-        emitConstant(Value{index});
+        std::uint8_t upvalueCount{compiler.function_.upvalueCount};
+        FunctionIndex funcIndex{funcPool_.addFunction(std::move(compiler.function_))};
+        std::size_t constant{currentChunk()->addConstant(Value{funcIndex})};
+        emitByte(OpCode::OP_CLOSURE);
+        emitByte(static_cast<std::uint8_t>(constant));
+
+        for(std::size_t i{0}; i < upvalueCount; i++) {
+            emitByte(compiler.upvalues_[i].isLocal ? 1 : 0);
+            emitByte(compiler.upvalues_[i].index);
+        }
     }
 
     void Compiler::declareLocalVariable() {
@@ -662,12 +675,13 @@ namespace pegasus {
     
     int Compiler::resolveLocal(const Token &name) {
         for(std::size_t i{localCount_}; i > 0; i--) {
-            if(locals_[i - 1].name == name.lexeme_) {
-                if(locals_[i].depth == UNINITIALIZED) {
+            std::size_t index{i - 1};
+            if(locals_[index].name == name.lexeme_) {
+                if(locals_[index].depth == UNINITIALIZED) {
                     parser_.error("can't read local variable in its own initializer");
                 }
 
-                return static_cast<int>(i);
+                return static_cast<int>(index);
             }
         }
 
