@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(pegasus VERSION 0.5.0 LANGUAGES CXX)
+project(pegasus VERSION 0.6.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -17,7 +17,21 @@ add_executable(pegasus
 )
 
 target_compile_options(pegasus PRIVATE
-    -O3
+    -g
+    -Wall
+    -Wextra
+    -Werror
+    -Wshadow
+    -Wpedantic
+    -Wconversion
+    -Wsign-conversion
+    -fsanitize=address
+    -fsanitize=undefined
+)
+
+target_link_options(pegasus_lib PRIVATE
+    -fsanitize=address
+    -fsanitize=undefined
 )
 
 target_include_directories(pegasus PRIVATE include)
