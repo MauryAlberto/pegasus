@@ -147,6 +147,12 @@ namespace pegasus {
                 return byteInstruction("OP_SET_UPVALUE", chunk, offset);
             case OpCode::OP_CLOSE_UPVALUE:
                 return simpleInstruction("OP_CLOSE_UPVALUE", offset);
+            case OpCode::OP_CLASS:
+                return constantInstruction("OP_CLASS", chunk, offset);
+            case OpCode::OP_GET_PROPERTY:
+                return constantInstruction("OP_GET_PROPERTY", chunk, offset);
+            case OpCode::OP_SET_PROPERTY:
+                return constantInstruction("OP_SET_PROPERTY", chunk, offset);
             default:
                 printf("unknown opcode %d\n", static_cast<int>(instruction));
                 return offset + 1;

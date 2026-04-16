@@ -4,14 +4,6 @@
 #include "value.hpp"
 
 namespace pegasus {
-    struct ClassIndex {
-        std::size_t index;
-    };
-
-    struct InstanceIndex {
-        std::size_t index;
-    };
-
     struct ObjClass {
         std::string name;
     };

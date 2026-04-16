@@ -10,7 +10,7 @@ namespace pegasus {
         /* LEFT_BRACE */    {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
         /* RIGHT_BRACE */   {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
         /* COMMA */         {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
-        /* DOT */           {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
+        /* DOT */           {nullptr, &Compiler::dot, Compiler::Precedence::PREC_CALL},
         /* MINUS */         {&Compiler::unary, &Compiler::binary, Compiler::Precedence::PREC_TERM},
         /* PLUS */          {nullptr, &Compiler::binary, Compiler::Precedence::PREC_TERM},
         /* SEMICOLON */     {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
@@ -172,7 +172,9 @@ namespace pegasus {
     }
 
     void Compiler::declaration() {
-        if(match(TokenType::FN)) {
+        if(match(TokenType::CLASS)) {
+            classDeclaration();
+        } else if(match(TokenType::FN)) {
             fnDeclaration();
         } else if(match(TokenType::VAR)) {
             varDeclaration();
@@ -181,6 +183,38 @@ namespace pegasus {
         }
 
         if(parser_.isInPanicMode()) synchronize();
+    }
+
+    void Compiler::classDeclaration() {
+        parser_.consume(TokenType::IDENTIFIER, "expect class name");
+        Token className{parser_.previousToken()};
+        std::size_t nameConstant{currentChunk()->addConstant(Value{std::string(className.lexeme_)})};
+
+        if(scopeDepth_ > 0) {
+            declareLocalVariable();
+            initializeLocal();
+        }
+
+        emitByte(OpCode::OP_CLASS);
+        emitByte(static_cast<std::uint8_t>(nameConstant));
+
+        if(scopeDepth_ > 0) {
+            // local already declared and initialized above
+        } else {
+            // global
+            if(nameConstant <= 255) {
+                emitByte(OpCode::OP_DEFINE_GLOBAL);
+                emitByte(static_cast<std::uint8_t>(nameConstant));
+            } else {
+                emitByte(OpCode::OP_DEFINE_GLOBAL_LONG);
+                emitByte(static_cast<std::uint8_t>(nameConstant & 0xFF));
+                emitByte(static_cast<std::uint8_t>((nameConstant >> 8) & 0xFF));
+                emitByte(static_cast<std::uint8_t>((nameConstant >> 16) & 0xFF));
+            }
+        }
+
+        parser_.consume(TokenType::LEFT_BRACE, "expect '{' before class body");
+        parser_.consume(TokenType::RIGHT_BRACE, "expect '}' after class body");
     }
 
     void Compiler::fnDeclaration() {
@@ -463,7 +497,23 @@ namespace pegasus {
         static_cast<void>(canAssign);
         emitConstant(Value{std::string(parser_.previousToken().lexeme_)});
     }
-    
+
+    void Compiler::dot(bool canAssign) {
+        parser_.consume(TokenType::IDENTIFIER, "expect property name after '.'");
+        std::size_t nameConstant{currentChunk()->addConstant(
+            Value{std::string(parser_.previousToken().lexeme_)}
+        )};
+
+        if(canAssign && match(TokenType::EQUAL)) {
+            expression();
+            emitByte(OpCode::OP_SET_PROPERTY);
+            emitByte(static_cast<std::uint8_t>(nameConstant));
+        } else {
+            emitByte(OpCode::OP_GET_PROPERTY);
+            emitByte(static_cast<std::uint8_t>(nameConstant));
+        }
+    }
+
     void Compiler::variable(bool canAssign) {
         namedVariable(parser_.previousToken(), canAssign);
     }

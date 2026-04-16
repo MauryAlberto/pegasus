@@ -219,6 +219,69 @@ namespace pegasus {
                         break;   
                     }
 
+                    case OpCode::OP_CLASS: {
+                        std::uint8_t nameIndex{*frame->ip++};
+                        Value nameVal{currentFunction(*frame).chunk.getConstant(nameIndex)};
+                        std::string name{std::get<std::string>(nameVal)};
+
+                        ObjClass cls;
+                        cls.name = std::move(name);
+                        ClassIndex clsIndex{classPool_.addClass(std::move(cls))};
+                        push(Value{clsIndex});
+                        break;
+                    }
+
+                    case OpCode::OP_GET_PROPERTY: {
+                        if(!std::holds_alternative<InstanceIndex>(peek(0))) {
+                            throw std::runtime_error("only instances have properties");
+                        }
+
+                        InstanceIndex instIndex{std::get<InstanceIndex>(peek(0))};
+                        ObjInstance& instance{instancePool_.getInstance(instIndex)};
+
+                        std::uint8_t nameIndex{*frame->ip++};
+                        Value nameVal{currentFunction(*frame).chunk.getConstant(nameIndex)};
+                        std::string name{std::visit([](auto&& v) -> std::string {
+                            using T = std::decay_t<decltype(v)>;
+                            if constexpr(std::is_same_v<T, std::string>) return v;
+                            else if constexpr(std::is_same_v<T, std::string_view>) return std::string(v);
+                            else throw std::runtime_error("property name must be a string");
+                        }, nameVal)};
+
+                        auto it{instance.fields.find(name)};
+                        if(it != instance.fields.end()) {
+                            pop(); // pop the instance
+                            push(it->second); // push the field value
+                            break;
+                        }
+
+                        throw std::runtime_error("undefined property '" + name + "'");
+                    }
+
+                    case OpCode::OP_SET_PROPERTY: {
+                        if(!std::holds_alternative<InstanceIndex>(peek(1))) {
+                            throw std::runtime_error("only instances have fields");
+                        }
+
+                        InstanceIndex instIndex{std::get<InstanceIndex>(peek(1))};
+                        ObjInstance& instance{instancePool_.getInstance(instIndex)};
+                        
+                        std::uint8_t nameIndex{*frame->ip++};
+                        Value nameVal{currentFunction(*frame).chunk.getConstant(nameIndex)};
+                        std::string name{std::visit([](auto&& v) -> std::string {
+                            using T = std::decay_t<decltype(v)>;
+                            if constexpr(std::is_same_v<T, std::string>) return v;
+                            else if constexpr(std::is_same_v<T, std::string_view>) return std::string(v);
+                            else throw std::runtime_error("property name must be a string");
+                        }, nameVal)};
+
+                        instance.fields[name] = peek(0);
+                        Value value{pop()}; // pop the value
+                        pop(); // pop the instance
+                        push(value); // push the value back (assignment is an expression)
+                        break;
+                    }
+
                     case OpCode::OP_ADD:        {binaryOp(BinaryOp::ADD);break;}
                     case OpCode::OP_SUBTRACT:   {binaryOp(BinaryOp::SUBTRACT);break;}
                     case OpCode::OP_MULTIPLY:   {binaryOp(BinaryOp::MULTIPLY);break;}
@@ -370,6 +433,16 @@ namespace pegasus {
             Value result{nativeFunc.function_(argCount, stackTop_ - argCount)};
             stackTop_ -= argCount + 1;
             push(result);
+            return true;
+        }
+
+        if(std::holds_alternative<ClassIndex>(callee)) {
+            ClassIndex clsIndex{std::get<ClassIndex>(callee)};
+            ObjInstance instance;
+            instance.classIndex = clsIndex;
+            InstanceIndex instIndex{instancePool_.addInstance(std::move(instance))};
+            // replace the calss on the stack with the new instance
+            stackTop_[-argCount - 1] = Value{instIndex};
             return true;
         }
 

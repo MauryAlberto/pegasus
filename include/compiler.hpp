@@ -96,6 +96,7 @@ namespace pegasus {
             // Parsing
             void parsePrecedence(Precedence precedence);
             void declaration();
+            void classDeclaration();
             void fnDeclaration();
             void varDeclaration();
             std::size_t parseVariable(std::string_view errorMessage);
@@ -116,6 +117,7 @@ namespace pegasus {
             void binary(bool canAssign);
             void literal(bool canAssign);
             void string(bool canAssign);
+            void dot(bool canAssign);
             void variable(bool canAssign);
             void namedVariable(const Token& type, bool canAssign);
             void and_(bool canAssign);

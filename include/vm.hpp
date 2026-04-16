@@ -14,6 +14,7 @@
 #include "function_pool.hpp"
 #include "closure_pool.hpp"
 #include "upvalue_pool.hpp"
+#include "class_pool.hpp"
 
 namespace pegasus {
     inline constexpr int FRAME_MAX = 64;
@@ -71,6 +72,8 @@ namespace pegasus {
             std::vector<ObjUpValue*> openUpvalues_;
             UpvaluePool upvaluePool_{};
             UpvalueIndex openUpvalueHead_{SIZE_MAX};
+            ClassPool classPool_{};
+            InstancePool instancePool_{};
             std::unordered_map<std::string_view, Value> globalVariables_{};
 
             void push(Value value);

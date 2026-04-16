@@ -6,14 +6,17 @@
 #include <string_view>
 #include "function_index.hpp"
 #include "closure_index.hpp"
+#include "class_index.hpp"
+#include "instance_index.hpp"
 
 namespace pegasus {
     struct NativeFunction;
-    using Value = std::variant<int, double, bool, std::string, std::string_view, std::monostate, FunctionIndex, NativeFunction, ClosureIndex>;
+    using Value = std::variant<int, double, bool, std::string, std::string_view, std::monostate, FunctionIndex, NativeFunction, ClosureIndex, ClassIndex, InstanceIndex>;
     using NativeFn = Value(*)(std::size_t argCount, Value* args);
     struct NativeFunction {
         NativeFn function_;
     };
+
     inline void printValue(const Value& value) {
         std::visit([](auto&& v) {
             using T = std::decay_t<decltype(v)>;
@@ -35,6 +38,10 @@ namespace pegasus {
                 printf("<native fn>");
             } else if constexpr (std::is_same_v<T, ClosureIndex>) {
                 printf("<closure>");
+            } else if constexpr(std::is_same_v<T, ClassIndex>) {
+                printf("<class>");
+            } else if constexpr(std::is_same_v<T, InstanceIndex>) {
+                printf("<instance>");
             } else {
                 throw std::runtime_error("unknown value type");
             }
@@ -52,6 +59,10 @@ namespace pegasus {
                 throw std::runtime_error("cannot negate a function index");
             } else if constexpr(std::is_same_v<T, ClosureIndex>) {
                 throw std::runtime_error("cannote negate a closure index");
+            }  else if constexpr(std::is_same_v<T, ClassIndex>) {
+                throw std::runtime_error("cannot negate a class index");
+            } else if constexpr(std::is_same_v<T, InstanceIndex>) {
+                throw std::runtime_error("cannote negate an instance index");
             } else {
                 throw std::runtime_error("operand must be a number");
             }
@@ -75,6 +86,10 @@ namespace pegasus {
                 throw std::runtime_error("function index is neither true or false");
             } else if constexpr(std::is_same_v<T, ClosureIndex>) {
                 throw std::runtime_error("closure index is neither true or false");
+            }  else if constexpr(std::is_same_v<T, ClassIndex>) {
+                throw std::runtime_error("class index is neither true or false");
+            } else if constexpr(std::is_same_v<T, InstanceIndex>) {
+                throw std::runtime_error("instance index is neither true or false");
             } else {
                 throw std::runtime_error("unhandled type in isFalsey");
             }
