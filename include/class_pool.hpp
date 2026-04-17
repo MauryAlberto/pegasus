@@ -6,43 +6,74 @@
 namespace pegasus {
     class ClassPool {
         public:
-            ClassPool() { classPool_.reserve(32); }
+            ClassPool() { pool_.reserve(32); }
             ClassPool(const ClassPool&) = delete;
             ClassPool& operator=(const ClassPool&) = delete;
             ClassPool(ClassPool&&) = delete;
             ClassPool& operator=(ClassPool&&) = delete;
 
             ClassIndex addClass(ObjClass&& cls) {
-                ClassIndex index{classPool_.size()};
-                classPool_.push_back(std::move(cls));
+                ClassIndex index{pool_.size()};
+                pool_.push_back(std::move(cls));
                 return index;
             }
 
-            ObjClass& getClass(ClassIndex clsIndex) { return classPool_.at(clsIndex.index); }
-            const ObjClass& getClass(ClassIndex clsIndex) const { return classPool_.at(clsIndex.index); }
+            ObjClass& getClass(ClassIndex clsIndex) { return pool_.at(clsIndex.index); }
+            const ObjClass& getClass(ClassIndex clsIndex) const { return pool_.at(clsIndex.index); }
 
         private:
-            std::vector<ObjClass> classPool_;
+            std::vector<ObjClass> pool_;
     };
 
     class InstancePool {
         public:
-            InstancePool() { instancePool_.reserve(64); }
+            InstancePool() { pool_.reserve(64); }
             InstancePool(const InstancePool&) = delete;
             InstancePool& operator=(const InstancePool&) = delete;
             InstancePool(InstancePool&&) = delete;
             InstancePool& operator=(InstancePool&&) = delete;
 
             InstanceIndex addInstance(ObjInstance&& inst) {
-                InstanceIndex index{instancePool_.size()};
-                instancePool_.push_back(std::move(inst));
+                InstanceIndex index{pool_.size()};
+                pool_.push_back(std::move(inst));
                 return index;
             }
 
-            ObjInstance& getInstance(InstanceIndex instIndex) { return instancePool_.at(instIndex.index); }
-            const ObjInstance& getInstance(InstanceIndex instIndex) const { return instancePool_.at(instIndex.index); }
+            ObjInstance& getInstance(InstanceIndex instIndex) {
+                return pool_.at(instIndex.index);
+            }
+
+            const ObjInstance& getInstance(InstanceIndex instIndex) const {
+                return pool_.at(instIndex.index);
+            }
 
         private:
-            std::vector<ObjInstance> instancePool_;
+            std::vector<ObjInstance> pool_;
+    };
+
+    class BoundMethodPool {
+        public:
+            BoundMethodPool() { pool_.reserve(64); }
+            BoundMethodPool(const BoundMethodPool&) = delete;
+            BoundMethodPool& operator=(const BoundMethodPool&) = delete;
+            BoundMethodPool(BoundMethodPool&&) = delete;
+            BoundMethodPool operator=(BoundMethodPool&&) = delete;
+
+            BoundMethodIndex addBoundMethod(ObjBoundMethod&& bm) {
+                BoundMethodIndex index{pool_.size()};
+                pool_.push_back(std::move(bm));
+                return index;
+            }
+
+            ObjBoundMethod& getBoundMethod(BoundMethodIndex bmIndex) {
+                return pool_.at(bmIndex.index);
+            }
+
+            const ObjBoundMethod& getBoundMethod(BoundMethodIndex bmIndex) const {
+                return pool_.at(bmIndex.index);
+            }
+
+        private:
+            std::vector<ObjBoundMethod> pool_;
     };
 }

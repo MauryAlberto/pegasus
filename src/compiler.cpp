@@ -43,7 +43,7 @@ namespace pegasus {
         /* PRINT */         {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
         /* RETURN */        {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
         /* VAR */           {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
-        /* THIS */          {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
+        /* THIS */          {&Compiler::this_, nullptr, Compiler::Precedence::PREC_NONE},
         /* NIL */           {&Compiler::literal, nullptr, Compiler::Precedence::PREC_NONE},
         /* SUPER */         {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
 
@@ -122,7 +122,12 @@ namespace pegasus {
     }
 
     void Compiler::emitReturn() {
-        emitByte(OpCode::OP_NIL);
+        if(functionType_ == FunctionType::TYPE_INITIALIZER) {
+            emitByte(OpCode::OP_GET_LOCAL);
+            emitByte(static_cast<std::uint8_t>(0)); // slot 0 is 'this'
+        } else {
+            emitByte(OpCode::OP_NIL);
+        }
         emitByte(OpCode::OP_RETURN);
     }
     
@@ -195,6 +200,10 @@ namespace pegasus {
             initializeLocal();
         }
 
+        ClassCompiler classCompiler;
+        classCompiler.enclosing = currentClass_;
+        currentClass_ = &classCompiler;
+
         emitByte(OpCode::OP_CLASS);
         emitByte(static_cast<std::uint8_t>(nameConstant));
 
@@ -213,8 +222,17 @@ namespace pegasus {
             }
         }
 
+        namedVariable(className, false);
+
         parser_.consume(TokenType::LEFT_BRACE, "expect '{' before class body");
+        while(parser_.currentToken().type_ != TokenType::RIGHT_BRACE && parser_.currentToken().type_ != TokenType::EOF_) {
+            method();
+        }        
         parser_.consume(TokenType::RIGHT_BRACE, "expect '}' after class body");
+    
+        emitByte(OpCode::OP_POP); // pop the class
+
+        currentClass_ = classCompiler.enclosing; // restore
     }
 
     void Compiler::fnDeclaration() {
@@ -344,6 +362,9 @@ namespace pegasus {
         if(match(TokenType::SEMICOLON)) {
             emitReturn();
         } else {
+            if(functionType_ == FunctionType::TYPE_INITIALIZER) {
+                parser_.error("can't return a value from an initializer");
+            }
             expression();
             parser_.consume(TokenType::SEMICOLON, "expect ';' after return value");
             emitByte(OpCode::OP_RETURN);
@@ -508,6 +529,12 @@ namespace pegasus {
             expression();
             emitByte(OpCode::OP_SET_PROPERTY);
             emitByte(static_cast<std::uint8_t>(nameConstant));
+        } else if(match(TokenType::LEFT_PAREN)) {
+            // optimized invoke: obj.method(args) in one step
+            std::uint8_t argCount{argumentList()};
+            emitByte(OpCode::OP_INVOKE);
+            emitByte(static_cast<std::uint8_t>(nameConstant));
+            emitByte(argCount);
         } else {
             emitByte(OpCode::OP_GET_PROPERTY);
             emitByte(static_cast<std::uint8_t>(nameConstant));
@@ -608,25 +635,18 @@ namespace pegasus {
         patchJump(endJump);
     }
 
+    void Compiler::this_(bool canAssign) {
+        static_cast<void>(canAssign);
+        if(currentClass_ == nullptr) {
+            parser_.error("can't use 'this' outside of a class");
+            return;
+        }
+        variable(false); // 'this' is just a local variable lookup
+    }
+
     void Compiler::call(bool canAssign) {
         static_cast<void>(canAssign);
-        std::uint8_t argCount{0};
-        
-        if(parser_.currentToken().type_ != TokenType::RIGHT_PAREN) {
-            do {
-                expression();
-
-                if(argCount == 255) {
-                    parser_.error("can't have more than 255 arguments");
-                }
-
-                argCount++;
-            } while(match(TokenType::COMMA));
-
-            
-        }
-
-        parser_.consume(TokenType::RIGHT_PAREN, "expect ')' after arguments");
+        std::uint8_t argCount{argumentList()};
         emitByte(OpCode::OP_CALL);
         emitByte(argCount);
     }
@@ -662,7 +682,11 @@ namespace pegasus {
         compiler.function_.name = std::string(compiler.parser_.previousToken().lexeme_);
 
         compiler.beginScope();
-        compiler.addLocal("");
+        if(funcType == FunctionType::TYPE_METHOD || funcType == FunctionType::TYPE_INITIALIZER) {
+            compiler.addLocal("this");
+        } else {
+            compiler.addLocal("");
+        }
         compiler.initializeLocal();
         compiler.parser_.consume(TokenType::LEFT_PAREN, "expect '(' after function name");
         if(compiler.parser_.currentToken().type_ != TokenType::RIGHT_PAREN) {
@@ -690,6 +714,24 @@ namespace pegasus {
             emitByte(compiler.upvalues_[i].isLocal ? 1 : 0);
             emitByte(compiler.upvalues_[i].index);
         }
+    }
+
+    void Compiler::method() {
+        parser_.consume(TokenType::IDENTIFIER, "expect method name");
+        std::string_view methodName{parser_.previousToken().lexeme_};
+        std::size_t nameConstant{currentChunk()->addConstant(
+            Value{std::string(parser_.previousToken().lexeme_)}
+        )};
+
+        FunctionType type{FunctionType::TYPE_METHOD};
+        if(methodName == "init") {
+            type = FunctionType::TYPE_INITIALIZER;
+        }
+
+        function(type);
+
+        emitByte(OpCode::OP_METHOD);
+        emitByte(static_cast<std::uint8_t>(nameConstant));
     }
 
     void Compiler::declareLocalVariable() {
@@ -736,5 +778,22 @@ namespace pegasus {
         }
 
         return -1;
+    }
+    
+    std::uint8_t Compiler::argumentList() {
+        std::uint8_t argCount{0};
+
+        if(parser_.currentToken().type_ != TokenType::RIGHT_PAREN) {
+            do {
+                expression();
+                if(argCount == 255) {
+                    parser_.error("can't have more than 255 arguments");
+                }
+                argCount++;
+            } while(match(TokenType::COMMA));
+        }
+
+        parser_.consume(TokenType::RIGHT_PAREN, "expect ')' after arguments");
+        return argCount;
     }
 }

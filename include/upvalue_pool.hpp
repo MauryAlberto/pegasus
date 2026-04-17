@@ -5,18 +5,18 @@
 namespace pegasus {
     class UpvaluePool {
         public:
-            UpvaluePool() { upvaluePool_.reserve(64); }
+            UpvaluePool() { pool_.reserve(64); }
 
             UpvalueIndex addUpValue(ObjUpValue&& uv) {
-                UpvalueIndex index{upvaluePool_.size()};
-                upvaluePool_.push_back(std::move(uv));
+                UpvalueIndex index{pool_.size()};
+                pool_.push_back(std::move(uv));
                 return index;
             }
 
             ObjUpValue& getUpvalue(UpvalueIndex uvIndex) {
-                return upvaluePool_.at(uvIndex.index);
+                return pool_.at(uvIndex.index);
             }
         private:
-            std::vector<ObjUpValue> upvaluePool_;
+            std::vector<ObjUpValue> pool_;
     };
 }

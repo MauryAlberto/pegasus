@@ -255,6 +255,18 @@ namespace pegasus {
                             break;
                         }
 
+                        ObjClass& cls{classPool_.getClass(instance.classIndex)};
+                        auto methodIt{cls.methods.find(name)};
+                        if(methodIt != cls.methods.end()) {
+                            ObjBoundMethod bm;
+                            bm.receiver = instIndex;
+                            bm.method = methodIt->second;
+                            BoundMethodIndex bmIndex{boundMethodPool_.addBoundMethod(std::move(bm))};
+                            pop();
+                            push(Value{bmIndex});
+                            break;
+                        }
+
                         throw std::runtime_error("undefined property '" + name + "'");
                     }
 
@@ -279,6 +291,72 @@ namespace pegasus {
                         Value value{pop()}; // pop the value
                         pop(); // pop the instance
                         push(value); // push the value back (assignment is an expression)
+                        break;
+                    }
+
+                    case OpCode::OP_METHOD: {
+                        std::uint8_t nameIndex{*frame->ip++};
+                        Value nameVal{currentFunction(*frame).chunk.getConstant(nameIndex)};
+                        std::string name{std::get<std::string>(nameVal)};
+
+                        Value methodVal{peek(0)}; // the closure on top of stack
+                        ClosureIndex closureIndex{std::get<ClosureIndex>(methodVal)};
+
+                        Value classVal{peek(1)}; // the class below it
+                        ClassIndex clsIndex{std::get<ClassIndex>(classVal)};
+
+                        ObjClass& cls{classPool_.getClass(clsIndex)};
+                        cls.methods[name] = closureIndex;
+
+                        pop(); // pop the closure
+                        break;
+                    }
+
+                    case OpCode::OP_INVOKE: {
+                        std::uint8_t nameIndex{*frame->ip++};
+                        std::uint8_t argCount{*frame->ip++};
+
+                        Value nameVal{currentFunction(*frame).chunk.getConstant(nameIndex)};
+                        std::string name{std::get<std::string>(nameVal)};
+
+                        Value receiver{peek(argCount)};
+                        if(!std::holds_alternative<InstanceIndex>(receiver)) {
+                            throw std::runtime_error("only instances have methods");
+                        }
+
+                        InstanceIndex instIndex{std::get<InstanceIndex>(receiver)};
+                        ObjInstance& instance{instancePool_.getInstance(instIndex)};
+
+                        // check fields first (a field could be a closure)
+                        auto fieldIt{instance.fields.find(name)};
+                        if(fieldIt != instance.fields.end()) {
+                            stackTop_[-argCount - 1] = fieldIt->second;
+                            if(!callValue(fieldIt->second, argCount)) {
+                                return InterpretResult::RUNTIME_ERROR;
+                            }
+                            frame = &frames_[frameCount_ - 1];
+                            break;
+                        }
+
+                        // check methods
+                        ObjClass& cls{classPool_.getClass(instance.classIndex)};
+                        auto methodIt{cls.methods.find(name)};
+                        if(methodIt == cls.methods.end()) {
+                            throw std::runtime_error("undefined property '" + name + "'");
+                        }
+
+                        const ObjClosure& closure{closurePool_.getClosure(methodIt->second)};
+                        const ObjFunction& function{funcPool_.getFunction(closure.funcIndex)};
+
+                        if(function.arity != argCount) {
+                            throw std::runtime_error("expected " + std::to_string(function.arity) + " arguments but got " + std::to_string(argCount));
+                        }
+
+                        CallFrame& newFrame{frames_[frameCount_++]};
+                        newFrame.closureIndex = methodIt->second;
+                        newFrame.ip = function.chunk.getCode();
+                        newFrame.slots = stackTop_ - argCount - 1;
+                        frame = &frames_[frameCount_ - 1];
                         break;
                     }
 
@@ -441,8 +519,54 @@ namespace pegasus {
             ObjInstance instance;
             instance.classIndex = clsIndex;
             InstanceIndex instIndex{instancePool_.addInstance(std::move(instance))};
-            // replace the calss on the stack with the new instance
+            // replace the class on the stack with the new instance
             stackTop_[-argCount - 1] = Value{instIndex};
+
+            // look for an init method
+            ObjClass& cls{classPool_.getClass(clsIndex)};
+            auto initIt{cls.methods.find("init")};
+            if(initIt != cls.methods.end()) {
+                const ObjClosure& closure{closurePool_.getClosure(initIt->second)};
+                const ObjFunction& function{funcPool_.getFunction(closure.funcIndex)};
+
+                if(function.arity != argCount) {
+                    throw std::runtime_error("expected " + std::to_string(function.arity) + " arguments but got " + std::to_string(argCount));
+                }
+
+                CallFrame& newFrame{frames_[frameCount_++]};
+                newFrame.closureIndex = initIt->second;
+                newFrame.ip = function.chunk.getCode();
+                newFrame.slots = stackTop_ - argCount - 1;
+            } else if(argCount != 0) {
+                throw std::runtime_error("expected 0 arguments but got " + std::to_string(argCount));
+            }
+
+
+            return true;
+        }
+
+        if(std::holds_alternative<BoundMethodIndex>(callee)) {
+            BoundMethodIndex bmIndex{std::get<BoundMethodIndex>(callee)};
+            const ObjBoundMethod& bm{boundMethodPool_.getBoundMethod(bmIndex)};
+
+            // put the reciever in slot 0 where 'this' will be
+            stackTop_[-argCount - 1] = Value{bm.receiver};
+
+            const ObjClosure& closure{closurePool_.getClosure(bm.method)};
+            const ObjFunction& function{funcPool_.getFunction(closure.funcIndex)};
+
+            if(function.arity != argCount) {
+                throw std::runtime_error("expected " + std::to_string(function.arity) + " arguments but got " + std::to_string(argCount));
+            }
+
+            if(frameCount_ >= FRAME_MAX) {
+                throw std::runtime_error("stack overflow");
+            }
+
+            CallFrame& newFrame{frames_[frameCount_++]};
+            newFrame.closureIndex = bm.method;
+            newFrame.ip = function.chunk.getCode();
+            newFrame.slots = stackTop_ - argCount - 1;
             return true;
         }
 

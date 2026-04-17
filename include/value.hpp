@@ -8,10 +8,11 @@
 #include "closure_index.hpp"
 #include "class_index.hpp"
 #include "instance_index.hpp"
+#include "bound_method_index.hpp"
 
 namespace pegasus {
     struct NativeFunction;
-    using Value = std::variant<int, double, bool, std::string, std::string_view, std::monostate, FunctionIndex, NativeFunction, ClosureIndex, ClassIndex, InstanceIndex>;
+    using Value = std::variant<int, double, bool, std::string, std::string_view, std::monostate, FunctionIndex, NativeFunction, ClosureIndex, ClassIndex, InstanceIndex, BoundMethodIndex>;
     using NativeFn = Value(*)(std::size_t argCount, Value* args);
     struct NativeFunction {
         NativeFn function_;
@@ -42,6 +43,8 @@ namespace pegasus {
                 printf("<class>");
             } else if constexpr(std::is_same_v<T, InstanceIndex>) {
                 printf("<instance>");
+            } else if constexpr(std::is_same_v<T, BoundMethodIndex>) {
+                printf("<bound method>");
             } else {
                 throw std::runtime_error("unknown value type");
             }
@@ -63,6 +66,8 @@ namespace pegasus {
                 throw std::runtime_error("cannot negate a class index");
             } else if constexpr(std::is_same_v<T, InstanceIndex>) {
                 throw std::runtime_error("cannote negate an instance index");
+            }  else if constexpr(std::is_same_v<T, BoundMethodIndex>) {
+                throw std::runtime_error("cannote negate a bound method index");
             } else {
                 throw std::runtime_error("operand must be a number");
             }
@@ -90,6 +95,8 @@ namespace pegasus {
                 throw std::runtime_error("class index is neither true or false");
             } else if constexpr(std::is_same_v<T, InstanceIndex>) {
                 throw std::runtime_error("instance index is neither true or false");
+            }  else if constexpr(std::is_same_v<T, BoundMethodIndex>) {
+                throw std::runtime_error("bound method index is neither true or false");
             } else {
                 throw std::runtime_error("unhandled type in isFalsey");
             }

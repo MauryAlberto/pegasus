@@ -153,6 +153,18 @@ namespace pegasus {
                 return constantInstruction("OP_GET_PROPERTY", chunk, offset);
             case OpCode::OP_SET_PROPERTY:
                 return constantInstruction("OP_SET_PROPERTY", chunk, offset);
+            case OpCode::OP_METHOD:
+                return constantInstruction("OP_METHOD", chunk, offset);
+            case OpCode::OP_INVOKE: {
+                offset++;
+                std::uint8_t nameIndex{chunk->getRawByte(offset++)};
+                std::uint8_t argCount{chunk->getRawByte(offset++)};
+                Value name{chunk->getConstant(nameIndex)};
+                printf("%-19s ", "OP_INVOKE");
+                printValue(name);
+                printf(" (%d args)\n", argCount);
+                return offset;
+            }
             default:
                 printf("unknown opcode %d\n", static_cast<int>(instruction));
                 return offset + 1;

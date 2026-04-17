@@ -41,7 +41,9 @@ namespace pegasus {
 
             enum class FunctionType {
                 TYPE_FUNCTION,
-                TYPE_SCRIPT
+                TYPE_SCRIPT,
+                TYPE_METHOD,
+                TYPE_INITIALIZER
             };
 
             // State
@@ -50,6 +52,12 @@ namespace pegasus {
             ObjFunction function_{};
             FunctionType functionType_;
             Compiler* enclosing_{nullptr};
+            
+            struct ClassCompiler {
+                ClassCompiler* enclosing;
+            };
+
+            static inline ClassCompiler* currentClass_;
 
             // Upvalues
             struct UpvalueEntry {
@@ -122,15 +130,18 @@ namespace pegasus {
             void namedVariable(const Token& type, bool canAssign);
             void and_(bool canAssign);
             void or_(bool canAssign);
+            void this_(bool canAssign);
             void call(bool canAssign);
             void beginScope();
             void endScope();
             void block();
             void function(FunctionType funcType);
+            void method();
             void declareLocalVariable();
             void addLocal(std::string_view name);
             void initializeLocal();
             int resolveLocal(const Token& name);
+            std::uint8_t argumentList();
     };
 
     inline std::optional<ObjFunction> compile(std::string_view source, FunctionPool& funcPool) {

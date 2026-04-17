@@ -74,6 +74,7 @@ namespace pegasus {
             UpvalueIndex openUpvalueHead_{SIZE_MAX};
             ClassPool classPool_{};
             InstancePool instancePool_{};
+            BoundMethodPool boundMethodPool_{};
             std::unordered_map<std::string_view, Value> globalVariables_{};
 
             void push(Value value);
