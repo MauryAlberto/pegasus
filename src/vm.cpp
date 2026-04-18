@@ -360,6 +360,86 @@ namespace pegasus {
                         break;
                     }
 
+                    case OpCode::OP_INHERIT: {
+                        Value superVal{peek(1)};
+                        if(!std::holds_alternative<ClassIndex>(superVal)) {
+                            throw std::runtime_error("superclass must be a class");
+                        }
+
+                        ClassIndex superIndex{std::get<ClassIndex>(superVal)};
+                        ObjClass& superclass{classPool_.getClass(superIndex)};
+
+                        Value subVal{peek(0)};
+                        ClassIndex subIndex{std::get<ClassIndex>(subVal)};
+                        ObjClass& subclass{classPool_.getClass(subIndex)};
+
+                        // copy all methods from superclass to subclass
+                        for(auto& [name, method] : superclass.methods) {
+                            subclass.methods[name] = method;
+                        }
+
+                        pop(); // pop subclass
+                        break;
+                    }
+
+                    case OpCode::OP_GET_SUPER: {
+                        std::uint8_t nameIndex{*frame->ip};
+                        Value nameVal{currentFunction(*frame).chunk.getConstant(nameIndex)};
+                        std::string name{std::get<std::string>(nameVal)};
+
+                        Value superVal{pop()}; // pop the superclass
+                        ClassIndex superIndex{std::get<ClassIndex>(superVal)};
+                        ObjClass&  superclass{classPool_.getClass(superIndex)};
+
+                        auto methodIt{superclass.methods.find(name)};
+                        if(methodIt == superclass.methods.end()) {
+                            throw std::runtime_error("undefined property '" + name + "'");
+                        }
+
+                        // the instance (this) is still on the stack
+                        InstanceIndex instIndex{std::get<InstanceIndex>(peek(0))};
+
+                        ObjBoundMethod bm;
+                        bm.receiver = instIndex;
+                        bm.method = methodIt->second;
+                        BoundMethodIndex bmIndex{boundMethodPool_.addBoundMethod(std::move(bm))};
+
+                        pop(); // pop the instance
+                        push(Value{bmIndex});
+                        break;
+                    }
+
+                    case OpCode::OP_SUPER_INVOKE: {
+                        std::uint8_t nameIndex{*frame->ip};
+                        std::uint8_t argCount{*frame->ip};
+
+                        Value nameVal{currentFunction(*frame).chunk.getConstant(nameIndex)};
+                        std::string name{std::get<std::string>(nameVal)};
+
+                        Value superVal{pop()}; // pop the superclass
+                        ClassIndex superIndex{std::get<ClassIndex>(superVal)};
+                        ObjClass& superclass{classPool_.getClass(superIndex)};
+
+                        auto methodIt{superclass.methods.find(name)};
+                        if(methodIt == superclass.methods.end()) {
+                            throw std::runtime_error("undefined property '" + name + "'");
+                        }
+
+                        const ObjClosure& closure{closurePool_.getClosure(methodIt->second)};
+                        const ObjFunction& function{funcPool_.getFunction(closure.funcIndex)};
+
+                        if(function.arity != argCount) {
+                            throw std::runtime_error("expected " + std::to_string(function.arity) + " arguments but got " + std::to_string(argCount));
+                        }
+
+                        CallFrame& newFrame{frames_[frameCount_++]};
+                        newFrame.closureIndex = methodIt->second;
+                        newFrame.ip = function.chunk.getCode();
+                        newFrame.slots = stackTop_ - argCount - 1;
+                        frame = &frames_[frameCount_ - 1];
+                        break;
+                    }
+
                     case OpCode::OP_ADD:        {binaryOp(BinaryOp::ADD);break;}
                     case OpCode::OP_SUBTRACT:   {binaryOp(BinaryOp::SUBTRACT);break;}
                     case OpCode::OP_MULTIPLY:   {binaryOp(BinaryOp::MULTIPLY);break;}

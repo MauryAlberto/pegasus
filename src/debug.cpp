@@ -1,51 +1,62 @@
 #include "debug.hpp"
 
 namespace pegasus {
-    static std::size_t jumpInstruction(const std::string& name, int sign, const Chunk* chunk, std::size_t offset) {
+    static std::size_t invokeInstruction(std::string_view name, const Chunk* chunk, std::size_t offset) {
+        offset++;
+        std::uint8_t nameIndex{chunk->getRawByte(offset++)};
+        std::uint8_t argCount{chunk->getRawByte(offset++)};
+        Value constantName{chunk->getConstant(nameIndex)};
+        printf("%-19s ", name.data());
+        printValue(constantName);
+        printf(" (%d args)\n", argCount);
+        return offset;
+    }
+
+    static std::size_t jumpInstruction(std::string_view name, int sign, const Chunk* chunk, std::size_t offset) {
         std::uint8_t lsb{chunk->getRawByte(offset + 1)};
         std::uint8_t msb{chunk->getRawByte(offset + 2)};
         std::uint16_t jump{static_cast<std::uint16_t>((msb << 8) | lsb)};
 
         std::size_t target{(sign == 1) ? offset + 3 + jump : offset + 3 - jump};
-        printf("%-16s %4zu -> %zu\n", name.c_str(), offset, target);
+        printf("%-16s %4zu -> %zu\n", name.data(), offset, target);
         return offset + 3;
     }
 
-    static std::size_t byteInstruction(const std::string& name, const Chunk* chunk, std::size_t offset) {
+    static std::size_t byteInstruction(std::string_view name, const Chunk* chunk, std::size_t offset) {
         std::uint8_t slot{chunk->getRawByte(offset + 1)};
-        printf("%-16s %4d\n", name.c_str(), slot);
+        printf("%-16s %4d\n", name.data(), slot);
         return offset + 2;
     }
 
-    static std::size_t byteLongInstruction(const std::string& name, const Chunk* chunk, std::size_t offset) {
+    static std::size_t byteLongInstruction(std::string_view name, const Chunk* chunk, std::size_t offset) {
         std::size_t slot{
             static_cast<std::size_t>(chunk->getRawByte(offset + 1)) |
             (static_cast<std::size_t>(chunk->getRawByte(offset + 2)) << 8) |
             (static_cast<std::size_t>(chunk->getRawByte(offset + 3)) << 16)
         };
-        printf("%-16s %4zu\n", name.c_str(), slot);
+        printf("%-16s %4zu\n", name.data(), slot);
         return offset + 4;
     }
 
 
-    static std::size_t constantInstruction(const std::string& name, const Chunk* chunk, std::size_t offset) {
+    static std::size_t constantInstruction(std::string_view name, const Chunk* chunk, std::size_t offset) {
     std::uint8_t constantIndex{chunk->getRawByte(offset + 1)};
     Value constant{chunk->getConstant(constantIndex)};
 
-    printf("%-19s ", name.c_str());
+    printf("%-19s ", name.data());
     printValue(constant);
     printf("\n");
     return offset + 2;
     }
 
-    static std::size_t constantLongInstruction(const std::string& name, const Chunk* chunk, std::size_t offset) {
+    static std::size_t constantLongInstruction(std::string_view name, const Chunk* chunk, std::size_t offset) {
         std::size_t constantIndex{
             static_cast<std::size_t>(chunk->getRawByte(offset + 1)) |
             (static_cast<std::size_t>(chunk->getRawByte(offset + 2)) << 8) |
             (static_cast<std::size_t>(chunk->getRawByte(offset + 3)) << 16)};
         Value constant{chunk->getConstant(constantIndex)};
 
-        printf("%-16s ", name.c_str());
+        printf("%-16s ", name.data());
 
         printValue(constant);
         printf("\n");
@@ -53,20 +64,20 @@ namespace pegasus {
         return offset + 4;
     }
 
-    static std::size_t simpleInstruction(const std::string& name, std::size_t offset) {
-        printf("%s\n", name.c_str());
+    static std::size_t simpleInstruction(std::string_view name, std::size_t offset) {
+        printf("%s\n", name.data());
         return offset + 1;
     }
 
-    void disassembleChunk(const Chunk* chunk, const std::string& name) {
-        printf("== %s ==\n", name.c_str());
+    void disassembleChunk(const Chunk* chunk, std::string_view name, const FunctionPool* pool) {
+        printf("== %s ==\n", name.data());
 
         for(std::size_t offset = 0; offset < chunk->getCodeSize();) {
-            offset = disassembleInstruction(chunk, offset);
+            offset = disassembleInstruction(chunk, offset, pool);
         }
     }
 
-    std::size_t disassembleInstruction(const Chunk* chunk, std::size_t offset) {
+    std::size_t disassembleInstruction(const Chunk* chunk, std::size_t offset, const FunctionPool* pool) {
         printf("%04zu ", offset);
 
         if(offset > 0 && chunk->getLine(offset) == chunk->getLine(offset - 1)) {
@@ -139,8 +150,28 @@ namespace pegasus {
                 return byteInstruction("OP_CALL", chunk, offset);
             case OpCode::OP_RETURN:
                 return simpleInstruction("OP_RETURN", offset);
-            case OpCode::OP_CLOSURE:
-                return constantInstruction("OP_CLOSURE", chunk, offset);
+            case OpCode::OP_CLOSURE: {
+                offset++;
+                std::uint8_t constantIndex = chunk->getRawByte(offset++);
+                Value constant = chunk->getConstant(constantIndex);
+                printf("%-19s ", "OP_CLOSURE");
+                printValue(constant);
+                printf("\n");
+
+                if(pool && std::holds_alternative<FunctionIndex>(constant)) {
+                    FunctionIndex funcIdx = std::get<FunctionIndex>(constant);
+                    const ObjFunction& fn = pool->getFunction(funcIdx);
+                    for(std::size_t i = 0; i < fn.upvalueCount; i++) {
+                        std::uint8_t isLocal = chunk->getRawByte(offset);
+                        std::uint8_t index = chunk->getRawByte(offset + 1);
+                        printf("%04zu    |                     %s %d\n", 
+                            offset, isLocal ? "local" : "upvalue", index);
+                        offset += 2;
+                    }
+                }
+
+                return offset;
+            }
             case OpCode::OP_GET_UPVALUE:
                 return byteInstruction("OP_GET_UPVALUE", chunk, offset);
             case OpCode::OP_SET_UPVALUE:
@@ -155,16 +186,14 @@ namespace pegasus {
                 return constantInstruction("OP_SET_PROPERTY", chunk, offset);
             case OpCode::OP_METHOD:
                 return constantInstruction("OP_METHOD", chunk, offset);
-            case OpCode::OP_INVOKE: {
-                offset++;
-                std::uint8_t nameIndex{chunk->getRawByte(offset++)};
-                std::uint8_t argCount{chunk->getRawByte(offset++)};
-                Value name{chunk->getConstant(nameIndex)};
-                printf("%-19s ", "OP_INVOKE");
-                printValue(name);
-                printf(" (%d args)\n", argCount);
-                return offset;
-            }
+            case OpCode::OP_INVOKE:
+                return invokeInstruction("OP_INVOKE", chunk, offset);
+            case OpCode::OP_INHERIT:
+                return simpleInstruction("OP_INHERIT", offset);
+            case OpCode::OP_GET_SUPER:
+                return constantInstruction("OP_GET_SUPER", chunk, offset);
+            case OpCode::OP_SUPER_INVOKE:
+                return invokeInstruction("OP_SUPER_INVOKE", chunk, offset);
             default:
                 printf("unknown opcode %d\n", static_cast<int>(instruction));
                 return offset + 1;

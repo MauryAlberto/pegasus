@@ -45,7 +45,7 @@ namespace pegasus {
         /* VAR */           {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
         /* THIS */          {&Compiler::this_, nullptr, Compiler::Precedence::PREC_NONE},
         /* NIL */           {&Compiler::literal, nullptr, Compiler::Precedence::PREC_NONE},
-        /* SUPER */         {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
+        /* SUPER */         {&Compiler::super_, nullptr, Compiler::Precedence::PREC_NONE},
 
         /* ERROR */         {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
          /* EOF_ */         {nullptr, nullptr, Compiler::Precedence::PREC_NONE}
@@ -53,6 +53,8 @@ namespace pegasus {
 
     std::optional<ObjFunction> Compiler::compile() {
         functionType_ = FunctionType::TYPE_SCRIPT;
+        addLocal("");
+        initializeLocal();
         parser_.advance();
         while(!match(TokenType::EOF_)) declaration();
         endCompiler();
@@ -107,7 +109,7 @@ namespace pegasus {
     void Compiler::endCompiler() { 
         emitReturn();
         if(DEBUG_PRINT_CODE && !parser_.hadError()) {
-            disassembleChunk(currentChunk(), !function_.name.empty() ? function_.name : "<script>");
+            disassembleChunk(currentChunk(), !function_.name.empty() ? function_.name : "<script>", &funcPool_);
         }
     }
 
@@ -202,7 +204,22 @@ namespace pegasus {
 
         ClassCompiler classCompiler;
         classCompiler.enclosing = currentClass_;
+        classCompiler.hasSuperclass = false;
         currentClass_ = &classCompiler;
+
+        // check for superclass
+        bool hasSuperclass{false};
+        if(match(TokenType::LESS)) {
+            parser_.consume(TokenType::IDENTIFIER, "expect superclass name");
+            variable(false); // push the superclass onto the stack
+
+            if(className.lexeme_ == parser_.previousToken().lexeme_) {
+                parser_.error("a class can't inherit from itself");
+            }
+
+            hasSuperclass = true;
+            classCompiler.hasSuperclass = true;
+        }
 
         emitByte(OpCode::OP_CLASS);
         emitByte(static_cast<std::uint8_t>(nameConstant));
@@ -222,6 +239,16 @@ namespace pegasus {
             }
         }
 
+        if(hasSuperclass) {
+            // create a new scope for 'super'
+            beginScope();
+            addLocal("super");
+            initializeLocal();
+
+            namedVariable(className, false); // push subclass
+            emitByte(OpCode::OP_INHERIT);
+        }
+
         namedVariable(className, false);
 
         parser_.consume(TokenType::LEFT_BRACE, "expect '{' before class body");
@@ -231,6 +258,10 @@ namespace pegasus {
         parser_.consume(TokenType::RIGHT_BRACE, "expect '}' after class body");
     
         emitByte(OpCode::OP_POP); // pop the class
+
+        if(classCompiler.hasSuperclass) {
+            endScope();
+        }
 
         currentClass_ = classCompiler.enclosing; // restore
     }
@@ -644,6 +675,39 @@ namespace pegasus {
         variable(false); // 'this' is just a local variable lookup
     }
 
+    void Compiler::super_(bool canAssign) {
+        static_cast<void>(canAssign);
+
+        if(currentClass_ == nullptr) {
+            parser_.error("can't use 'super' outside of a class");
+        } else if(!currentClass_->hasSuperclass) {
+            parser_.error("can't use 'super' in a class with no superclass");
+        }
+
+        parser_.consume(TokenType::DOT, "expect '.' after 'super'");
+        parser_.consume(TokenType::IDENTIFIER, "expect super class method name");
+        std::size_t nameConstant{currentChunk()->addConstant(
+            Value{std::string(parser_.previousToken().lexeme_)}
+        )};
+
+        // push 'this' (the receiver)
+        namedVariable(Token{TokenType::THIS, "this", 0}, false);
+
+        if(match(TokenType::LEFT_PAREN)) {
+            // optimized: super.method(args) -> OP_SUPER_INVOKE
+            std::uint8_t argCount{argumentList()};
+            namedVariable(Token{TokenType::SUPER, "super", 0}, false);
+            emitByte(OpCode::OP_SUPER_INVOKE);
+            emitByte(static_cast<std::uint8_t>(nameConstant));
+            emitByte(argCount);
+        } else {
+            // just accessing: super.method -> OP_GET_SUPER
+            namedVariable(Token{TokenType::SUPER, "super", 0}, false);
+            emitByte(OpCode::OP_GET_SUPER);
+            emitByte(static_cast<std::uint8_t>(nameConstant));
+        }
+    }
+
     void Compiler::call(bool canAssign) {
         static_cast<void>(canAssign);
         std::uint8_t argCount{argumentList()};
@@ -765,7 +829,7 @@ namespace pegasus {
         locals_[localCount_ - 1].depth = scopeDepth_;
     }
     
-    int Compiler::resolveLocal(const Token &name) {
+    int Compiler::resolveLocal(const Token &name) {       
         for(std::size_t i{localCount_}; i > 0; i--) {
             std::size_t index{i - 1};
             if(locals_[index].name == name.lexeme_) {

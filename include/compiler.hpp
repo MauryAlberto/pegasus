@@ -55,6 +55,7 @@ namespace pegasus {
             
             struct ClassCompiler {
                 ClassCompiler* enclosing;
+                bool hasSuperclass{false};
             };
 
             static inline ClassCompiler* currentClass_;
@@ -131,6 +132,7 @@ namespace pegasus {
             void and_(bool canAssign);
             void or_(bool canAssign);
             void this_(bool canAssign);
+            void super_(bool canAssign);
             void call(bool canAssign);
             void beginScope();
             void endScope();
