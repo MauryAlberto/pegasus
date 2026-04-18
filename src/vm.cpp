@@ -523,48 +523,61 @@ namespace pegasus {
     void VM::binaryOp(BinaryOp op) {
         Value b{pop()};
         Value a{pop()};
-        
-        std::visit([&a, &b, &op, this](auto&& aVal, auto&& bVal) {
-            using A = std::decay_t<decltype(aVal)>;
-            using B = std::decay_t<decltype(bVal)>;
 
-            if constexpr(std::is_arithmetic_v<A> && std::is_arithmetic_v<B>) {
-                switch(op) {
-                    case BinaryOp::ADD:         {push(Value{aVal + bVal});break;}
-                    case BinaryOp::SUBTRACT:    {push(Value{aVal - bVal});break;}
-                    case BinaryOp::MULTIPLY:    {push(Value{aVal * bVal});break;}
-                    case BinaryOp::DIVIDE:      {push(Value{aVal / bVal});break;}
-                    case BinaryOp::EQUAL:       {push(Value{aVal == bVal});break;}
-                    case BinaryOp::GREATER:     {push(Value{aVal > bVal});break;}
-                    case BinaryOp::LESS:        {push(Value{aVal < bVal});break;}
-                    default:
-                        throw std::runtime_error("unknown binary operator");
-                }
-            } else if constexpr(std::is_same_v<A, std::string_view> && std::is_same_v<B, std::string_view>) {
-                switch(op) {
-                    case BinaryOp::ADD:         {push(Value{std::string{aVal} + std::string{bVal}});break;}
-                    case BinaryOp::EQUAL:       {push(Value{aVal == bVal});break;}
-                    case BinaryOp::GREATER:     {push(Value{aVal > bVal});break;}
-                    case BinaryOp::LESS:        {push(Value{aVal < bVal});break;}
-                    default:
-                        throw std::runtime_error("invalid operator for strings");
-                }
-
-            } else if constexpr(std::is_same_v<A, std::string> && std::is_same_v<B, std::string>) {
-                switch(op) {
-                    case BinaryOp::ADD:         {push(Value{std::string{aVal} + std::string{bVal}});break;}
-                    case BinaryOp::EQUAL:       {push(Value{aVal == bVal});break;}
-                    case BinaryOp::GREATER:     {push(Value{aVal > bVal});break;}
-                    case BinaryOp::LESS:        {push(Value{aVal < bVal});break;}
-                    default:
-                        throw std::runtime_error("invalid operator for strings");
-                }
-            } else {
+        if(std::holds_alternative<int>(a) && std::holds_alternative<int>(b)) {
+            int aVal{std::get<int>(a)};
+            int bVal{std::get<int>(b)};
+            switch(op) {
+                case BinaryOp::ADD:         {push(Value{aVal + bVal});break;}
+                case BinaryOp::SUBTRACT:    {push(Value{aVal - bVal});break;}
+                case BinaryOp::MULTIPLY:    {push(Value{aVal * bVal});break;}
+                case BinaryOp::DIVIDE:      {push(Value{aVal / bVal});break;}
+                case BinaryOp::EQUAL:       {push(Value{aVal == bVal});break;}
+                case BinaryOp::GREATER:     {push(Value{aVal > bVal});break;}
+                case BinaryOp::LESS:        {push(Value{aVal < bVal});break;}
+                default:
+                    throw std::runtime_error("unknown binary operator");
+            }
+        } else if(std::holds_alternative<double>(a) && std::holds_alternative<double>(b)) {
+            double aVal{std::get<double>(a)};
+            double bVal{std::get<double>(b)};
+            switch(op) {
+                case BinaryOp::ADD:         {push(Value{aVal + bVal});break;}
+                case BinaryOp::SUBTRACT:    {push(Value{aVal - bVal});break;}
+                case BinaryOp::MULTIPLY:    {push(Value{aVal * bVal});break;}
+                case BinaryOp::DIVIDE:      {push(Value{aVal / bVal});break;}
+                case BinaryOp::EQUAL:       {push(Value{aVal == bVal});break;}
+                case BinaryOp::GREATER:     {push(Value{aVal > bVal});break;}
+                case BinaryOp::LESS:        {push(Value{aVal < bVal});break;}
+                default:
+                    throw std::runtime_error("unknown binary operator");
+            }
+        } else if(std::holds_alternative<std::string>(a) && std::holds_alternative<std::string>(b)) {
+            const std::string& aVal{std::get<std::string>(a)};
+            const std::string& bVal{std::get<std::string>(b)};
+            switch(op) {
+                case BinaryOp::ADD:         {push(Value{std::string{aVal} + std::string{bVal}});break;}
+                case BinaryOp::EQUAL:       {push(Value{aVal == bVal});break;}
+                case BinaryOp::GREATER:     {push(Value{aVal > bVal});break;}
+                case BinaryOp::LESS:        {push(Value{aVal < bVal});break;}
+                default:
+                    throw std::runtime_error("invalid operator for strings");
+            }
+        } else if(std::holds_alternative<std::string_view>(a) && std::holds_alternative<std::string_view>(b)) {
+            std::string_view aVal{std::get<std::string_view>(a)};
+            std::string_view bVal{std::get<std::string_view>(b)};
+            switch(op) {
+                case BinaryOp::ADD:         {push(Value{std::string{aVal} + std::string{bVal}});break;}
+                case BinaryOp::EQUAL:       {push(Value{aVal == bVal});break;}
+                case BinaryOp::GREATER:     {push(Value{aVal > bVal});break;}
+                case BinaryOp::LESS:        {push(Value{aVal < bVal});break;}
+                default:
+                    throw std::runtime_error("invalid operator for strings");
+            }
+        }  else {
                     throw std::runtime_error("operands must be of same type for binary operations: " + 
                     std::to_string(a.index()) + " and " + std::to_string(b.index()));
             }
-
-        }, a, b);
     }
 
     std::string_view VM::extractVariableName(const Value &identifier) {
