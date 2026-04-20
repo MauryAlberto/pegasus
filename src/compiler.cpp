@@ -42,7 +42,8 @@ namespace pegasus {
         /* CLASS */         {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
         /* PRINT */         {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
         /* RETURN */        {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
-        /* VAR */           {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
+        /* MUT */           {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
+        /* IMMUT */         {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
         /* THIS */          {&Compiler::this_, nullptr, Compiler::Precedence::PREC_NONE},
         /* NIL */           {&Compiler::literal, nullptr, Compiler::Precedence::PREC_NONE},
         /* SUPER */         {&Compiler::super_, nullptr, Compiler::Precedence::PREC_NONE},
@@ -183,8 +184,10 @@ namespace pegasus {
             classDeclaration();
         } else if(match(TokenType::FN)) {
             fnDeclaration();
-        } else if(match(TokenType::VAR)) {
-            varDeclaration();
+        } else if(match(TokenType::MUT)) {
+            varDeclaration(true);
+        } else if(match(TokenType::IMMUT)) {
+            varDeclaration(false);
         } else {
             statement();
         }
@@ -270,20 +273,24 @@ namespace pegasus {
         std::size_t globalIndex{parseVariable("expect function name")};
         initializeLocal();
         function(FunctionType::TYPE_FUNCTION);
-        defineVariable(globalIndex);
+        defineVariable(globalIndex, true);
     }
 
-    void Compiler::varDeclaration() {
+    void Compiler::varDeclaration(bool isMutable) {
         std::size_t global{parseVariable("expect variable name")};
 
         if(match(TokenType::EQUAL)) {
             expression();
         } else {
+            if(!isMutable) {
+                parser_.error("immutable variables must be initialized");
+                return;
+            }
             emitByte(OpCode::OP_NIL);
         }
 
         parser_.consume(TokenType::SEMICOLON, "expected ';' after variable declaration");
-        defineVariable(global);
+        defineVariable(global, isMutable);
     }
 
     std::size_t Compiler::parseVariable(std::string_view errorMessage) {
@@ -297,17 +304,17 @@ namespace pegasus {
         return currentChunk()->writeConstant(Value{parser_.previousToken().lexeme_}, parser_.previousLine());
     }
 
-    void Compiler::defineVariable(const std::size_t global) {
+    void Compiler::defineVariable(const std::size_t global, bool isMutable) {
         if(scopeDepth_ > 0) {
             initializeLocal();
             return;
         }
 
         if(global <= 255) {
-            emitByte(OpCode::OP_DEFINE_GLOBAL);
+            emitByte(isMutable ? OpCode::OP_DEFINE_GLOBAL : OpCode::OP_DEFINE_GLOBAL_IMMUT);
             emitByte(static_cast<std::uint8_t>(global));
         } else {
-            emitByte(OpCode::OP_DEFINE_GLOBAL_LONG);
+            emitByte(isMutable ? OpCode::OP_DEFINE_GLOBAL_LONG : OpCode::OP_DEFINE_GLOBAL_IMMUT_LONG);
             emitByte(static_cast<std::uint8_t>(global & 0xFF));
             emitByte(static_cast<std::uint8_t>((global >> 8) & 0xFF));
             emitByte(static_cast<std::uint8_t>((global >> 16) & 0xFF));
@@ -342,7 +349,8 @@ namespace pegasus {
             switch(parser_.currentToken().type_) {
                 case TokenType::CLASS:
                 case TokenType::FN:
-                case TokenType::VAR:
+                case TokenType::MUT:
+                case TokenType::IMMUT:
                 case TokenType::FOR:
                 case TokenType::IF:
                 case TokenType::WHILE:
@@ -422,8 +430,10 @@ namespace pegasus {
         parser_.consume(TokenType::LEFT_PAREN, "expect '(' after 'for'");
         if(match(TokenType::SEMICOLON)) {
             // no initializer
-        } else if(match(TokenType::VAR)) {
-            varDeclaration();
+        } else if(match(TokenType::MUT)) {
+            varDeclaration(true);
+        } else if(match(TokenType::IMMUT)) {
+            varDeclaration(false);
         } else {
             expressionStatement();
         }
@@ -584,6 +594,9 @@ namespace pegasus {
         if(isLocal) {
             // local variable
             if(canAssign && match(TokenType::EQUAL)) {
+                if(!locals_[static_cast<std::size_t>(arg)].isMutable) {
+                    parser_.error("cannot assign to immutable variable");
+                }
                 expression();
                 if(arg <= 255) {
                     emitByte(OpCode::OP_SET_LOCAL);
@@ -760,7 +773,7 @@ namespace pegasus {
                 }
                 compiler.function_.arity++;
                 std::size_t constant{compiler.parseVariable("expect parameter name")};
-                compiler.defineVariable(constant);
+                compiler.defineVariable(constant, true);
             } while(compiler.match(TokenType::COMMA));
         }
         compiler.parser_.consume(TokenType::RIGHT_PAREN, "expect ')' after parameters");

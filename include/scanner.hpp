@@ -21,7 +21,7 @@ namespace pegasus {
         TRUE, FALSE, IF, ELSE,
         AND, OR, FOR, WHILE,
         FN, CLASS, PRINT, RETURN,
-        VAR, THIS, NIL, SUPER,
+        MUT, IMMUT, THIS, NIL, SUPER,
 
         ERROR, EOF_,
         TOKEN_SIZE

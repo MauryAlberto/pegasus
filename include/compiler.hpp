@@ -75,6 +75,7 @@ namespace pegasus {
                 std::string_view name;
                 std::size_t depth;
                 bool isCaptured{false};
+                bool isMutable{false};
              };
              std::array<Local, LOCAL_STACK_SIZE> locals_{};
              std::size_t localCount_{0};
@@ -107,9 +108,9 @@ namespace pegasus {
             void declaration();
             void classDeclaration();
             void fnDeclaration();
-            void varDeclaration();
+            void varDeclaration(bool isMutable);
             std::size_t parseVariable(std::string_view errorMessage);
-            void defineVariable(std::size_t global);
+            void defineVariable(std::size_t global, bool isMutable);
             void statement();
             void synchronize();
             bool match(TokenType type);

@@ -91,6 +91,10 @@ namespace pegasus {
                             throw std::runtime_error("undefined variable '" + std::string(internedName) + "'");
                         }
 
+                        if(immutableGlobals_.count(std::string(internedName))) {
+                            throw std::runtime_error("cannot assign to immutable variable '" + std::string(internedName) + "'");
+                        }
+
                         it->second = peek(0);
                         break;
                     }
@@ -437,6 +441,28 @@ namespace pegasus {
                         newFrame.ip = function.chunk.getCode();
                         newFrame.slots = stackTop_ - argCount - 1;
                         frame = &frames_[frameCount_ - 1];
+                        break;
+                    }
+
+                    case OpCode::OP_DEFINE_GLOBAL_IMMUT: {
+                        const std::size_t constantIndex{*frame->ip++};
+                        Value identifier{currentFunction(*frame).chunk.getConstant(constantIndex)};
+                        std::string_view variableName{extractVariableName(identifier)};
+                        std::string_view internedName{strPool_.intern(variableName)};
+                        globalVariables_[internedName] = peek(0);
+                        immutableGlobals_.insert(std::string(internedName));
+                        pop();
+                        break;
+                    }
+
+                    case OpCode::OP_DEFINE_GLOBAL_IMMUT_LONG: {
+                        const std::size_t constantIndex{readConstantIndexLong(frame->ip)};
+                        Value identifier{currentFunction(*frame).chunk.getConstant(constantIndex)};
+                        std::string_view variableName{extractVariableName(identifier)};
+                        std::string_view internedName{strPool_.intern(variableName)};
+                        globalVariables_[internedName] = peek(0);
+                        immutableGlobals_.insert(std::string(internedName));
+                        pop();
                         break;
                     }
 

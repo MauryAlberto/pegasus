@@ -76,6 +76,7 @@ namespace pegasus {
             InstancePool instancePool_{};
             BoundMethodPool boundMethodPool_{};
             std::unordered_map<std::string_view, Value> globalVariables_{};
+            std::unordered_set<std::string> immutableGlobals_{};
 
             void push(Value value);
             Value pop();

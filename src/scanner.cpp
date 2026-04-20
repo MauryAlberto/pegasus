@@ -137,13 +137,18 @@ namespace pegasus {
             case 'a': return matchKeyword("and", TokenType::AND);
             case 'c': return matchKeyword("class", TokenType::CLASS);
             case 'e': return matchKeyword("else", TokenType::ELSE);
-            case 'i': return matchKeyword("if", TokenType::IF);
+            case 'i':
+                switch(start_[1]) {
+                    case 'f': return matchKeyword("if", TokenType::IF);
+                    case 'm': return matchKeyword("immut", TokenType::IMMUT);
+                }
+                break;
+            case 'm': return matchKeyword("mut", TokenType::MUT);
             case 'n': return matchKeyword("nil", TokenType::NIL);
             case 'o': return matchKeyword("or", TokenType::OR);
             case 'p': return matchKeyword("print", TokenType::PRINT);
             case 'r': return matchKeyword("return", TokenType::RETURN);
             case 's': return matchKeyword("super", TokenType::SUPER);
-            case 'v': return matchKeyword("var", TokenType::VAR);
             case 'w': return matchKeyword("while", TokenType::WHILE);
             case 'f':
                 switch(start_[1]) {

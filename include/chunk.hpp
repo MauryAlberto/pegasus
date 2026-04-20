@@ -50,6 +50,8 @@ namespace pegasus {
         OP_INHERIT,
         OP_GET_SUPER,
         OP_SUPER_INVOKE,
+        OP_DEFINE_GLOBAL_IMMUT,
+        OP_DEFINE_GLOBAL_IMMUT_LONG,
         OP_RETURN
     };
 
