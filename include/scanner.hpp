@@ -6,6 +6,7 @@ namespace pegasus {
 
     enum class TokenType {
         // single-character tokens
+        LEFT_BRACKET, RIGHT_BRACKET,
         LEFT_PAREN, RIGHT_PAREN,
         LEFT_BRACE, RIGHT_BRACE,
         COMMA, DOT, MINUS, PLUS,

@@ -12,6 +12,8 @@ namespace pegasus {
         if(std::isdigit(c)) return number();
 
         switch(c) {
+            case '[': return makeToken(TokenType::LEFT_BRACKET);
+            case ']': return makeToken(TokenType::RIGHT_BRACKET);
             case '(': return makeToken(TokenType::LEFT_PAREN);
             case ')': return makeToken(TokenType::RIGHT_PAREN);
             case '{': return makeToken(TokenType::LEFT_BRACE);
