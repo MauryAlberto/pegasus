@@ -555,6 +555,7 @@ namespace pegasus {
                         ArrayIndex arrIndex{std::get<ArrayIndex>(arrayVal)};
                         ObjArray& arr{arrayPool_.getArray(arrIndex)};
                         arr.elements.push_back(val);
+                        push(val); // push the value back (array.push() is an expression)
                         break;
                     }
 
