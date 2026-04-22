@@ -15,6 +15,7 @@
 #include "closure_pool.hpp"
 #include "upvalue_pool.hpp"
 #include "class_pool.hpp"
+#include "arrary_pool.hpp"
 
 namespace pegasus {
     inline constexpr int FRAME_MAX = 64;
@@ -75,6 +76,7 @@ namespace pegasus {
             ClassPool classPool_{};
             InstancePool instancePool_{};
             BoundMethodPool boundMethodPool_{};
+            ArrayPool arrayPool_{};
             std::unordered_map<std::string_view, Value> globalVariables_{};
             std::unordered_set<std::string> immutableGlobals_{};
 

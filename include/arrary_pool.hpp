@@ -11,7 +11,6 @@ namespace pegasus {
             ArrayPool(const ArrayPool&) = delete;
             ArrayPool& operator=(const ArrayPool&) = delete;
             ArrayPool(ArrayPool&&) = delete;
-            ArrayPool(ArrayPool&&) = delete;
             ArrayPool& operator=(ArrayPool&&) = delete;
 
             ArrayIndex addArray(ObjArray&& arr) {

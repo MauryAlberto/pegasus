@@ -466,6 +466,98 @@ namespace pegasus {
                         break;
                     }
 
+                    case OpCode::OP_GET_INDEX: {
+                        Value indexVal{pop()};
+                        Value arrayVal{pop()};
+
+                        if(!std::holds_alternative<ArrayIndex>(arrayVal)) {
+                            throw std::runtime_error("can only index into arrays");
+                        }
+
+                        if(!std::holds_alternative<int>(indexVal)) {
+                            throw std::runtime_error("array index must be an integer");
+                        }
+
+                        ArrayIndex arrIndex{std::get<ArrayIndex>(arrayVal)};
+                        int index{std::get<int>(indexVal)};
+                        ObjArray& arr{arrayPool_.getArray(arrIndex)};
+
+                        if(index < 0 || static_cast<std::size_t>(index) >= arr.elements.size()) {
+                            throw std::runtime_error("array index out of bounds");
+                        }
+
+                        push(arr.elements[static_cast<std::size_t>(index)]);
+                        break;
+                    }
+
+                    case OpCode::OP_SET_INDEX: {
+                        Value value{pop()};
+                        Value indexVal{pop()};
+                        Value arrayVal{pop()};
+
+                        if(!std::holds_alternative<ArrayIndex>(arrayVal)) {
+                            throw std::runtime_error("can only index into arrays");
+                        }
+
+                        if(!std::holds_alternative<int>(indexVal)) {
+                            throw std::runtime_error("array index must be an integer");
+                        }
+
+                        ArrayIndex arrIndex{std::get<ArrayIndex>(arrayVal)};
+                        int index{std::get<int>(indexVal)};
+                        ObjArray& arr{arrayPool_.getArray(arrIndex)};
+
+                        if(index < 0 || static_cast<std::size_t>(index) >= arr.elements.size()) {
+                            throw std::runtime_error("array index out of bounds");
+                        }
+
+                        arr.elements[static_cast<std::size_t>(index)] = value;
+                        push(value); // assignment is an expression
+                        break;
+                    }
+
+                    case OpCode::OP_ARRAY: {
+                        std::uint8_t count{*frame->ip++};
+                        ObjArray arr;
+                        arr.elements.resize(count);
+
+                        // elements are on the stack in order, top is last element
+                        for(std::size_t i{count}; i > 0; i--) {
+                            arr.elements[i - 1] = pop();
+                        }
+
+                        ArrayIndex arrIndex{arrayPool_.addArray(std::move(arr))};
+                        push(Value{arrIndex});
+                        break;
+                    }
+
+                    case OpCode::OP_ARRAY_LEN: {
+                        Value arrayVal{pop()};
+
+                        if(!std::holds_alternative<ArrayIndex>(arrayVal)) {
+                            throw std::runtime_error("len() argument must be an array");
+                        }
+
+                        ArrayIndex arrIndex{std::get<ArrayIndex>(arrayVal)};
+                        ObjArray& arr{arrayPool_.getArray(arrIndex)};
+                        push(Value{static_cast<int>(arr.elements.size())});
+                        break;
+                    }
+
+                    case OpCode::OP_ARRAY_PUSH: {
+                        Value val{pop()};
+                        Value arrayVal{pop()};
+
+                        if(!std::holds_alternative<ArrayIndex>(arrayVal)) {
+                            throw std::runtime_error("can only push to arrays");
+                        }
+
+                        ArrayIndex arrIndex{std::get<ArrayIndex>(arrayVal)};
+                        ObjArray& arr{arrayPool_.getArray(arrIndex)};
+                        arr.elements.push_back(val);
+                        break;
+                    }
+
                     case OpCode::OP_ADD:        {binaryOp(BinaryOp::ADD);break;}
                     case OpCode::OP_SUBTRACT:   {binaryOp(BinaryOp::SUBTRACT);break;}
                     case OpCode::OP_MULTIPLY:   {binaryOp(BinaryOp::MULTIPLY);break;}

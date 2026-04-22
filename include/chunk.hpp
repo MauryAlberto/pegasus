@@ -52,6 +52,11 @@ namespace pegasus {
         OP_SUPER_INVOKE,
         OP_DEFINE_GLOBAL_IMMUT,
         OP_DEFINE_GLOBAL_IMMUT_LONG,
+        OP_ARRAY,
+        OP_GET_INDEX,
+        OP_SET_INDEX,
+        OP_ARRAY_LEN,
+        OP_ARRAY_PUSH,
         OP_RETURN
     };
 

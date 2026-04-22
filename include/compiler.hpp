@@ -22,7 +22,7 @@ namespace pegasus {
             std::optional<ObjFunction> compile();
 
         private:
-            static constexpr int DEBUG_PRINT_CODE = false;
+            static constexpr int DEBUG_PRINT_CODE = true;
             static constexpr int LOCAL_STACK_SIZE = 256;
 
             enum class Precedence {
@@ -135,6 +135,8 @@ namespace pegasus {
             void this_(bool canAssign);
             void super_(bool canAssign);
             void call(bool canAssign);
+            void arrayLiteral(bool canAssign);
+            void subscript(bool canAssign);
             void beginScope();
             void endScope();
             void block();

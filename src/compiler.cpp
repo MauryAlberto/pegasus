@@ -5,6 +5,8 @@ namespace pegasus {
 
     const std::array<Compiler::ParseRule, Compiler::TOKEN_COUNT> Compiler::rules {{
 
+        /* LEFT_BRACKET */  {&Compiler::arrayLiteral, &Compiler::subscript, Compiler::Precedence::PREC_CALL},
+        /* RIGHT_BRACKET */ {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
         /* LEFT_PAREN */    {&Compiler::grouping, &Compiler::call, Compiler::Precedence::PREC_CALL},
         /* RIGHT_PAREN */   {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
         /* LEFT_BRACE */    {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
@@ -562,8 +564,9 @@ namespace pegasus {
 
     void Compiler::dot(bool canAssign) {
         parser_.consume(TokenType::IDENTIFIER, "expect property name after '.'");
+        std::string_view methodName{parser_.previousToken().lexeme_};
         std::size_t nameConstant{currentChunk()->addConstant(
-            Value{std::string(parser_.previousToken().lexeme_)}
+            Value{std::string(methodName)}
         )};
 
         if(canAssign && match(TokenType::EQUAL)) {
@@ -571,11 +574,20 @@ namespace pegasus {
             emitByte(OpCode::OP_SET_PROPERTY);
             emitByte(static_cast<std::uint8_t>(nameConstant));
         } else if(match(TokenType::LEFT_PAREN)) {
-            // optimized invoke: obj.method(args) in one step
-            std::uint8_t argCount{argumentList()};
-            emitByte(OpCode::OP_INVOKE);
-            emitByte(static_cast<std::uint8_t>(nameConstant));
-            emitByte(argCount);
+            if(methodName == "len") {
+                parser_.consume(TokenType::RIGHT_PAREN, "expect ')' after len()");
+                emitByte(OpCode::OP_ARRAY_LEN);
+            } else if(methodName == "push") {
+                expression();
+                parser_.consume(TokenType::RIGHT_PAREN, "expect ')' after len()");
+                emitByte(OpCode::OP_ARRAY_PUSH);
+            } else {
+                // optimized invoke: obj.method(args) in one step
+                std::uint8_t argCount{argumentList()};
+                emitByte(OpCode::OP_INVOKE);
+                emitByte(static_cast<std::uint8_t>(nameConstant));
+                emitByte(argCount);
+            }
         } else {
             emitByte(OpCode::OP_GET_PROPERTY);
             emitByte(static_cast<std::uint8_t>(nameConstant));
@@ -726,6 +738,37 @@ namespace pegasus {
         std::uint8_t argCount{argumentList()};
         emitByte(OpCode::OP_CALL);
         emitByte(argCount);
+    }
+
+    void Compiler::arrayLiteral(bool canAssign) {
+        static_cast<void>(canAssign);
+        std::uint8_t elementCount{0};
+
+        if(parser_.currentToken().type_ != TokenType::RIGHT_BRACKET) {
+            do {
+                expression();
+                if(elementCount == 255) {
+                    parser_.error("can't have more than 255 elements in an array literal");
+                }
+                elementCount++;
+            } while(match(TokenType::COMMA));
+        }
+
+        parser_.consume(TokenType::RIGHT_BRACKET, "expect ']' after array elements");
+        emitByte(OpCode::OP_ARRAY);
+        emitByte(elementCount);
+    }
+
+    void Compiler::subscript(bool canAssign) {
+        expression(); // compile the index expression
+        parser_.consume(TokenType::RIGHT_BRACKET, "expect ']' after index");
+
+        if(canAssign && match(TokenType::EQUAL)) {
+            expression(); // compile the value to assign
+            emitByte(OpCode::OP_SET_INDEX);
+        } else {
+            emitByte(OpCode::OP_GET_INDEX);
+        }
     }
 
     void Compiler::beginScope() {

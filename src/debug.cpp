@@ -194,6 +194,16 @@ namespace pegasus {
                 return constantInstruction("OP_GET_SUPER", chunk, offset);
             case OpCode::OP_SUPER_INVOKE:
                 return invokeInstruction("OP_SUPER_INVOKE", chunk, offset);
+            case OpCode::OP_ARRAY:
+                return byteInstruction("OP_ARRAY", chunk, offset);
+            case OpCode::OP_GET_INDEX:
+                return simpleInstruction("OP_GET_INDEX", offset);
+            case OpCode::OP_SET_INDEX:
+                return simpleInstruction("OP_SET_INDEX", offset);
+            case OpCode::OP_ARRAY_LEN:
+                return simpleInstruction("OP_ARRAY_LEN", offset);
+            case OpCode::OP_ARRAY_PUSH:
+                return simpleInstruction("OP_ARRAY_PUSH", offset);
             default:
                 printf("unknown opcode %d\n", static_cast<int>(instruction));
                 return offset + 1;
