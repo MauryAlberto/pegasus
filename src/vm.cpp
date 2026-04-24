@@ -1,4 +1,5 @@
 #include "vm.hpp"
+#include <cmath>
 
 namespace pegasus {
     InterpretResult VM::run() {
@@ -563,6 +564,7 @@ namespace pegasus {
                     case OpCode::OP_SUBTRACT:   {binaryOp(BinaryOp::SUBTRACT);break;}
                     case OpCode::OP_MULTIPLY:   {binaryOp(BinaryOp::MULTIPLY);break;}
                     case OpCode::OP_DIVIDE:     {binaryOp(BinaryOp::DIVIDE);break;}
+                    case OpCode::OP_MODULO:     {binaryOp(BinaryOp::MODULO);break;}
                     case OpCode::OP_NEGATE:     {push(negateValue(pop()));break;}
                     case OpCode::OP_TRUE:       {push(Value{true});break;}
                     case OpCode::OP_FALSE:      {push(Value{false});break;}
@@ -654,6 +656,7 @@ namespace pegasus {
                 case BinaryOp::EQUAL:       {push(Value{aVal == bVal});break;}
                 case BinaryOp::GREATER:     {push(Value{aVal > bVal});break;}
                 case BinaryOp::LESS:        {push(Value{aVal < bVal});break;}
+                case BinaryOp::MODULO:      {push(Value{aVal % bVal});break;}
                 default:
                     throw std::runtime_error("unknown binary operator");
             }
@@ -668,6 +671,7 @@ namespace pegasus {
                 case BinaryOp::EQUAL:       {push(Value{aVal == bVal});break;}
                 case BinaryOp::GREATER:     {push(Value{aVal > bVal});break;}
                 case BinaryOp::LESS:        {push(Value{aVal < bVal});break;}
+                case BinaryOp::MODULO:      {push(Value{std::fmod(aVal, bVal)});break;}
                 default:
                     throw std::runtime_error("unknown binary operator");
             }

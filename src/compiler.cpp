@@ -17,6 +17,7 @@ namespace pegasus {
         /* PLUS */          {nullptr, &Compiler::binary, Compiler::Precedence::PREC_TERM},
         /* SEMICOLON */     {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
         /* SLASH */         {nullptr, &Compiler::binary, Compiler::Precedence::PREC_FACTOR},
+        /* PERCENT */       {nullptr, &Compiler::binary, Compiler::Precedence::PREC_FACTOR},
         /* STAR */          {nullptr, &Compiler::binary, Compiler::Precedence::PREC_FACTOR},
         // one or two character tokens
         /* NOT */           {&Compiler::unary, nullptr, Compiler::Precedence::PREC_NONE},
@@ -536,6 +537,7 @@ namespace pegasus {
             case TokenType::MINUS:          emitByte(OpCode::OP_SUBTRACT);break;
             case TokenType::STAR:           emitByte(OpCode::OP_MULTIPLY);break;
             case TokenType::SLASH:          emitByte(OpCode::OP_DIVIDE);break;
+            case TokenType::PERCENT:        emitByte(OpCode::OP_MODULO);break;
             case TokenType::NOT:            emitByte(OpCode::OP_NOT);break;
             case TokenType::NOT_EQUAL:      emitByte(OpCode::OP_EQUAL);emitByte(OpCode::OP_NOT);break;
             case TokenType::EQUAL_EQUAL:    emitByte(OpCode::OP_EQUAL);break;

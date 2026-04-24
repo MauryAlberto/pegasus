@@ -24,6 +24,7 @@ namespace pegasus {
             case '-': return makeToken(TokenType::MINUS);
             case '+': return makeToken(TokenType::PLUS);
             case '/': return makeToken(TokenType::SLASH);
+            case '%': return makeToken(TokenType::PERCENT);
             case '*': return makeToken(TokenType::STAR);
             case '!': return makeToken(
                 match('=') ? TokenType::NOT_EQUAL :TokenType::NOT);

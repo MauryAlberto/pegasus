@@ -10,7 +10,7 @@ namespace pegasus {
         LEFT_PAREN, RIGHT_PAREN,
         LEFT_BRACE, RIGHT_BRACE,
         COMMA, DOT, MINUS, PLUS,
-        SEMICOLON, SLASH, STAR,
+        SEMICOLON, SLASH, PERCENT, STAR,
         // one or two character tokens
         NOT, NOT_EQUAL,
         EQUAL, EQUAL_EQUAL,

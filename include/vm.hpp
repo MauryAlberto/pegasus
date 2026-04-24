@@ -32,6 +32,7 @@ namespace pegasus {
         SUBTRACT,
         MULTIPLY,
         DIVIDE,
+        MODULO,
         EQUAL,
         GREATER,
         LESS
