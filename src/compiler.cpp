@@ -37,8 +37,8 @@ namespace pegasus {
         /* FALSE */         {&Compiler::literal, nullptr, Compiler::Precedence::PREC_NONE},
         /* IF */            {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
         /* ELSE */          {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
-        /* AND */           {nullptr, &Compiler::and_, Compiler::Precedence::PREC_NONE},
-        /* OR */            {nullptr, &Compiler::or_, Compiler::Precedence::PREC_NONE},
+        /* AND */           {nullptr, &Compiler::and_, Compiler::Precedence::PREC_AND},
+        /* OR */            {nullptr, &Compiler::or_, Compiler::Precedence::PREC_OR},
         /* FOR */           {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
         /* WHILE */         {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
         /* FN */            {nullptr, nullptr, Compiler::Precedence::PREC_NONE},
@@ -280,7 +280,7 @@ namespace pegasus {
     }
 
     void Compiler::varDeclaration(bool isMutable) {
-        std::size_t global{parseVariable("expect variable name")};
+        std::size_t global{parseVariable("expect variable name", isMutable)};
 
         if(match(TokenType::EQUAL)) {
             expression();
@@ -296,11 +296,11 @@ namespace pegasus {
         defineVariable(global, isMutable);
     }
 
-    std::size_t Compiler::parseVariable(std::string_view errorMessage) {
+    std::size_t Compiler::parseVariable(std::string_view errorMessage, bool isMutable) {
         parser_.consume(TokenType::IDENTIFIER, errorMessage);
 
         if(scopeDepth_ > 0) {
-            declareLocalVariable();
+            declareLocalVariable(isMutable);
             return 0;
         }
         
@@ -559,9 +559,31 @@ namespace pegasus {
         }
     }
 
+    std::string Compiler::unescape(std::string_view s) {
+        std::string result;
+        for(std::size_t i = 0; i < s.size(); ++i) {
+            if(s[i] == '\\') {
+                if(i + 1 < s.size()) {
+                    switch(s[i + 1]) {
+                        case 'n': result += '\n'; i++; break;
+                        case 't': result += '\t'; i++; break;
+                        case '\\': result += '\\'; i++; break;
+                        case '"': result += '"'; i++; break;
+                        default: result += s[i]; break;
+                    }
+                } else {
+                    result += s[i];
+                }
+            } else {
+                result += s[i];
+            }
+        }
+        return result;
+    }
+
     void Compiler::string(bool canAssign) {
         static_cast<void>(canAssign);
-        emitConstant(Value{std::string(parser_.previousToken().lexeme_)});
+        emitConstant(Value{unescape(parser_.previousToken().lexeme_)});
     }
 
     void Compiler::dot(bool canAssign) {
@@ -817,7 +839,7 @@ namespace pegasus {
                     compiler.parser_.errorAtCurrent("can't have more than 255 parameters");
                 }
                 compiler.function_.arity++;
-                std::size_t constant{compiler.parseVariable("expect parameter name")};
+                std::size_t constant{compiler.parseVariable("expect parameter name", true)};
                 compiler.defineVariable(constant, true);
             } while(compiler.match(TokenType::COMMA));
         }
@@ -856,7 +878,7 @@ namespace pegasus {
         emitByte(static_cast<std::uint8_t>(nameConstant));
     }
 
-    void Compiler::declareLocalVariable() {
+    void Compiler::declareLocalVariable(bool isMutable) {
         std::string_view name{parser_.previousToken().lexeme_};
 
         for(int i{static_cast<int>(localCount_ - 1)}; i >= 0; i--) {
@@ -870,15 +892,15 @@ namespace pegasus {
             }
         }
 
-        addLocal(name);
+        addLocal(name, isMutable);
     }
     
-    void Compiler::addLocal(std::string_view name) {
+    void Compiler::addLocal(std::string_view name, bool isMutable) {
         if(localCount_ >= LOCAL_STACK_SIZE) {
             parser_.error("too many local variables");
         }
 
-        locals_[localCount_] = Local{name, UNINITIALIZED};
+        locals_[localCount_] = Local{name, UNINITIALIZED, false, isMutable};
         localCount_++;
     }
     

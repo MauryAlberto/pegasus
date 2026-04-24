@@ -22,7 +22,7 @@ namespace pegasus {
             std::optional<ObjFunction> compile();
 
         private:
-            static constexpr int DEBUG_PRINT_CODE = true;
+            static constexpr int DEBUG_PRINT_CODE = false;
             static constexpr int LOCAL_STACK_SIZE = 256;
 
             enum class Precedence {
@@ -109,7 +109,7 @@ namespace pegasus {
             void classDeclaration();
             void fnDeclaration();
             void varDeclaration(bool isMutable);
-            std::size_t parseVariable(std::string_view errorMessage);
+            std::size_t parseVariable(std::string_view errorMessage, bool isMutable = false);
             void defineVariable(std::size_t global, bool isMutable);
             void statement();
             void synchronize();
@@ -126,6 +126,7 @@ namespace pegasus {
             void unary(bool canAssign);
             void binary(bool canAssign);
             void literal(bool canAssign);
+            std::string unescape(std::string_view s);
             void string(bool canAssign);
             void dot(bool canAssign);
             void variable(bool canAssign);
@@ -142,8 +143,8 @@ namespace pegasus {
             void block();
             void function(FunctionType funcType);
             void method();
-            void declareLocalVariable();
-            void addLocal(std::string_view name);
+            void declareLocalVariable(bool isMutable = false);
+            void addLocal(std::string_view name, bool isMutable = false);
             void initializeLocal();
             int resolveLocal(const Token& name);
             std::uint8_t argumentList();

@@ -1,5 +1,6 @@
 #include "vm.hpp"
 #include <cmath>
+#include <random>
 
 namespace pegasus {
     InterpretResult VM::run() {
@@ -675,6 +676,36 @@ namespace pegasus {
                 default:
                     throw std::runtime_error("unknown binary operator");
             }
+        } else if(std::holds_alternative<int>(a) && std::holds_alternative<double>(b)) {
+            double aVal{static_cast<double>(std::get<int>(a))};
+            double bVal{std::get<double>(b)};
+            switch(op) {
+                case BinaryOp::ADD:         {push(Value{aVal + bVal});break;}
+                case BinaryOp::SUBTRACT:    {push(Value{aVal - bVal});break;}
+                case BinaryOp::MULTIPLY:    {push(Value{aVal * bVal});break;}
+                case BinaryOp::DIVIDE:      {push(Value{aVal / bVal});break;}
+                case BinaryOp::EQUAL:       {push(Value{aVal == bVal});break;}
+                case BinaryOp::GREATER:     {push(Value{aVal > bVal});break;}
+                case BinaryOp::LESS:        {push(Value{aVal < bVal});break;}
+                case BinaryOp::MODULO:      {push(Value{std::fmod(aVal, bVal)});break;}
+                default:
+                    throw std::runtime_error("unknown binary operator");
+            }
+        } else if(std::holds_alternative<double>(a) && std::holds_alternative<int>(b)) {
+            double aVal{std::get<double>(a)};
+            double bVal{static_cast<double>(std::get<int>(b))};
+            switch(op) {
+                case BinaryOp::ADD:         {push(Value{aVal + bVal});break;}
+                case BinaryOp::SUBTRACT:    {push(Value{aVal - bVal});break;}
+                case BinaryOp::MULTIPLY:    {push(Value{aVal * bVal});break;}
+                case BinaryOp::DIVIDE:      {push(Value{aVal / bVal});break;}
+                case BinaryOp::EQUAL:       {push(Value{aVal == bVal});break;}
+                case BinaryOp::GREATER:     {push(Value{aVal > bVal});break;}
+                case BinaryOp::LESS:        {push(Value{aVal < bVal});break;}
+                case BinaryOp::MODULO:      {push(Value{std::fmod(aVal, bVal)});break;}
+                default:
+                    throw std::runtime_error("unknown binary operator");
+            }
         } else if(std::holds_alternative<std::string>(a) && std::holds_alternative<std::string>(b)) {
             const std::string& aVal{std::get<std::string>(a)};
             const std::string& bVal{std::get<std::string>(b)};
@@ -841,8 +872,28 @@ namespace pegasus {
         return Value{seconds};
     }
 
+    static Value randNative(std::size_t argCount, Value *args) {
+        static_cast<void>(argCount);
+        static_cast<void>(args);
+        static std::random_device rd;
+        static std::mt19937 gen(rd());
+        static std::uniform_real_distribution<> dis(0.0, 1.0);
+        return Value{dis(gen)};
+    }
+
+    static Value writeNative(std::size_t argCount, Value *args) {
+        if(argCount != 1) {
+            throw std::runtime_error("write() expects exactly 1 argument");
+        }
+        printValue(args[0]);
+        fflush(stdout);
+        return Value{std::monostate{}};
+    }
+
     void VM::defineNatives() {
         globalVariables_[strPool_.intern("clock")] = Value{NativeFunction{clockNative}};
+        globalVariables_[strPool_.intern("rand")] = Value{NativeFunction{randNative}};
+        globalVariables_[strPool_.intern("write")] = Value{NativeFunction{writeNative}};
     }
     
     UpvalueIndex VM::captureUpvalue(Value *local) {
