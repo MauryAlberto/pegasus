@@ -304,7 +304,7 @@ namespace pegasus {
             return 0;
         }
         
-        return currentChunk()->writeConstant(Value{parser_.previousToken().lexeme_}, parser_.previousLine());
+        return currentChunk()->addConstant(Value{parser_.previousToken().lexeme_});
     }
 
     void Compiler::defineVariable(const std::size_t global, bool isMutable) {
