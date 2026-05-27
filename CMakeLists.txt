@@ -1,10 +1,14 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(pegasus VERSION 0.8.0 LANGUAGES CXX)
+project(pegasus VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Debug)
+endif()
 
 add_executable(pegasus
     src/main.cpp
@@ -17,7 +21,6 @@ add_executable(pegasus
 )
 
 target_compile_options(pegasus PRIVATE
-    -g
     -Wall
     -Wextra
     -Werror
@@ -25,13 +28,12 @@ target_compile_options(pegasus PRIVATE
     -Wpedantic
     -Wconversion
     -Wsign-conversion
-    -fsanitize=address
-    -fsanitize=undefined
+    $<$<CONFIG:Debug>:-g -fsanitize=address -fsanitize=undefined>
+    $<$<CONFIG:Release>:-O2>
 )
 
 target_link_options(pegasus PRIVATE
-    -fsanitize=address
-    -fsanitize=undefined
+    $<$<CONFIG:Debug>:-fsanitize=address -fsanitize=undefined>
 )
 
 target_include_directories(pegasus PRIVATE include)
@@ -58,7 +60,6 @@ add_library(pegasus_lib STATIC
 
 target_include_directories(pegasus_lib PUBLIC include)
 target_compile_options(pegasus_lib PRIVATE
-    -g
     -Wall
     -Wextra
     -Werror
@@ -66,13 +67,12 @@ target_compile_options(pegasus_lib PRIVATE
     -Wpedantic
     -Wconversion
     -Wsign-conversion
-    -fsanitize=address
-    -fsanitize=undefined
+    $<$<CONFIG:Debug>:-g -fsanitize=address -fsanitize=undefined>
+    $<$<CONFIG:Release>:-O2>
 )
 
 target_link_options(pegasus_lib PUBLIC
-    -fsanitize=address
-    -fsanitize=undefined
+    $<$<CONFIG:Debug>:-fsanitize=address -fsanitize=undefined>
 )
 
 add_executable(pegasus_tests

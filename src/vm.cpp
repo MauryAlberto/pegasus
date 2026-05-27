@@ -745,11 +745,10 @@ namespace pegasus {
         }, identifier);
     }
 
-    std::size_t VM::readConstantIndexLong(const std::uint8_t* frameIp) {
+    std::size_t VM::readConstantIndexLong(const std::uint8_t*& frameIp) {
         const std::size_t lowByte{static_cast<std::size_t>(*frameIp++)};
-        const std::size_t midByte{static_cast<std::size_t>(*frameIp++)};
         const std::size_t highByte{static_cast<std::size_t>(*frameIp++)};
-        return (highByte << 16) | (midByte << 8) | lowByte;
+        return (highByte << 8) | lowByte;
     }
 
     bool VM::callValue(const Value &callee, std::uint8_t argCount) {

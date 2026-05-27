@@ -86,7 +86,7 @@ namespace pegasus {
             Value peek(int distance);
             void binaryOp(BinaryOp op);
             std::string_view extractVariableName(const Value& idenfitier);
-            std::size_t readConstantIndexLong(const std::uint8_t* frameIp);
+            std::size_t readConstantIndexLong(const std::uint8_t*& frameIp);
             bool callValue(const Value& callee, std::uint8_t argCount);
             const ObjFunction& currentFunction(const CallFrame& frame);
             void runtimeError(std::string_view errorMessage);

@@ -31,11 +31,10 @@ namespace pegasus {
     static std::size_t byteLongInstruction(std::string_view name, const Chunk* chunk, std::size_t offset) {
         std::size_t slot{
             static_cast<std::size_t>(chunk->getRawByte(offset + 1)) |
-            (static_cast<std::size_t>(chunk->getRawByte(offset + 2)) << 8) |
-            (static_cast<std::size_t>(chunk->getRawByte(offset + 3)) << 16)
+            (static_cast<std::size_t>(chunk->getRawByte(offset + 2)) << 8)
         };
         printf("%-16s %4zu\n", name.data(), slot);
-        return offset + 4;
+        return offset + 3;
     }
 
 
@@ -52,16 +51,14 @@ namespace pegasus {
     static std::size_t constantLongInstruction(std::string_view name, const Chunk* chunk, std::size_t offset) {
         std::size_t constantIndex{
             static_cast<std::size_t>(chunk->getRawByte(offset + 1)) |
-            (static_cast<std::size_t>(chunk->getRawByte(offset + 2)) << 8) |
-            (static_cast<std::size_t>(chunk->getRawByte(offset + 3)) << 16)};
+            (static_cast<std::size_t>(chunk->getRawByte(offset + 2)) << 8)};
         Value constant{chunk->getConstant(constantIndex)};
 
         printf("%-16s ", name.data());
-
         printValue(constant);
         printf("\n");
-        
-        return offset + 4;
+
+        return offset + 3;
     }
 
     static std::size_t simpleInstruction(std::string_view name, std::size_t offset) {
@@ -123,11 +120,15 @@ namespace pegasus {
             case OpCode::OP_DEFINE_GLOBAL:
                 return constantInstruction("OP_DEFINE_GLOBAL", chunk, offset);
             case OpCode::OP_DEFINE_GLOBAL_LONG:
-                return constantInstruction("OP_DEFINE_GLOBAL_LONG", chunk, offset);
+                return constantLongInstruction("OP_DEFINE_GLOBAL_LONG", chunk, offset);
+            case OpCode::OP_DEFINE_GLOBAL_IMMUT:
+                return constantInstruction("OP_DEFINE_GLOBAL_IMMUT", chunk, offset);
+            case OpCode::OP_DEFINE_GLOBAL_IMMUT_LONG:
+                return constantLongInstruction("OP_DEFINE_GLOBAL_IMMUT_LONG", chunk, offset);
             case OpCode::OP_GET_GLOBAL:
                 return constantInstruction("OP_GET_GLOBAL", chunk, offset);
             case OpCode::OP_GET_GLOBAL_LONG:
-                return constantInstruction("OP_GET_GLOBAL_LONG", chunk, offset);
+                return constantLongInstruction("OP_GET_GLOBAL_LONG", chunk, offset);
             case OpCode::OP_SET_GLOBAL:
                 return constantInstruction("OP_SET_GLOBAL", chunk, offset);
             case OpCode::OP_SET_GLOBAL_LONG:

@@ -23,7 +23,7 @@ namespace pegasus {
 
         private:
             static constexpr int DEBUG_PRINT_CODE = true;
-            static constexpr int LOCAL_STACK_SIZE = 256;
+            static constexpr int LOCAL_STACK_SIZE = 1024;
 
             enum class Precedence {
                 PREC_NONE,

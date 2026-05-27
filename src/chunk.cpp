@@ -28,9 +28,8 @@ namespace pegasus {
             write(static_cast<std::uint8_t>(constantIndex), lineNum);
         } else {
             write(OpCode::OP_CONSTANT_LONG, lineNum);
-            write(static_cast<std::uint8_t>((constantIndex & 0xFF)), lineNum);
+            write(static_cast<std::uint8_t>(constantIndex & 0xFF), lineNum);
             write(static_cast<std::uint8_t>((constantIndex >> 8) & 0xFF), lineNum);
-            write(static_cast<std::uint8_t>((constantIndex >> 16) & 0xFF), lineNum);
         }
 
         return constantIndex;

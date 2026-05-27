@@ -241,7 +241,6 @@ namespace pegasus {
                 emitByte(OpCode::OP_DEFINE_GLOBAL_LONG);
                 emitByte(static_cast<std::uint8_t>(nameConstant & 0xFF));
                 emitByte(static_cast<std::uint8_t>((nameConstant >> 8) & 0xFF));
-                emitByte(static_cast<std::uint8_t>((nameConstant >> 16) & 0xFF));
             }
         }
 
@@ -320,7 +319,6 @@ namespace pegasus {
             emitByte(isMutable ? OpCode::OP_DEFINE_GLOBAL_LONG : OpCode::OP_DEFINE_GLOBAL_IMMUT_LONG);
             emitByte(static_cast<std::uint8_t>(global & 0xFF));
             emitByte(static_cast<std::uint8_t>((global >> 8) & 0xFF));
-            emitByte(static_cast<std::uint8_t>((global >> 16) & 0xFF));
         }
     }
 
@@ -641,7 +639,6 @@ namespace pegasus {
                     emitByte(OpCode::OP_SET_LOCAL_LONG);
                     emitByte(static_cast<std::uint8_t>(arg & 0xFF));
                     emitByte(static_cast<std::uint8_t>((arg >> 8) & 0xFF));
-                    emitByte(static_cast<std::uint8_t>((arg >> 16) & 0xFF));
                 }
             } else {
                 if(arg <= 255) {
@@ -651,7 +648,6 @@ namespace pegasus {
                     emitByte(OpCode::OP_GET_LOCAL_LONG);
                     emitByte(static_cast<std::uint8_t>(arg & 0xFF));
                     emitByte(static_cast<std::uint8_t>((arg >> 8) & 0xFF));
-                    emitByte(static_cast<std::uint8_t>((arg >> 16) & 0xFF));
                 }
             }
 
@@ -678,7 +674,6 @@ namespace pegasus {
                     emitByte(OpCode::OP_SET_GLOBAL_LONG);
                     emitByte(static_cast<std::uint8_t>(globalArg & 0xFF));
                     emitByte(static_cast<std::uint8_t>((globalArg >> 8) & 0xFF));
-                    emitByte(static_cast<std::uint8_t>((globalArg >> 16) & 0xFF));
                 }
             } else {
                 if(globalArg <= 255) {
@@ -688,7 +683,6 @@ namespace pegasus {
                     emitByte(OpCode::OP_GET_GLOBAL_LONG);
                     emitByte(static_cast<std::uint8_t>(globalArg & 0xFF));
                     emitByte(static_cast<std::uint8_t>((globalArg >> 8) & 0xFF));
-                    emitByte(static_cast<std::uint8_t>((globalArg >> 16) & 0xFF));
                 }
             }
         }
@@ -710,7 +704,7 @@ namespace pegasus {
         std::size_t endJump{emitJump(OpCode::OP_JUMP)};
         
         patchJump(elseJump);
-        emitJump(OpCode::OP_POP);
+        emitByte(OpCode::OP_POP);
         parsePrecedence(Precedence::PREC_OR);
         patchJump(endJump);
     }
